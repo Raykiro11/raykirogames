@@ -1,0 +1,21 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copia os arquivos de dependências primeiro
+COPY package*.json ./
+
+# Instala todas as dependências (dev e prod)
+RUN npm install
+
+# Copia o restante do projeto
+COPY . .
+
+# Build do Vite
+RUN npm run build
+
+# Porta padrão do Vite preview
+EXPOSE 4173
+
+# Comando para rodar o app
+CMD ["npm", "run", "preview"]
