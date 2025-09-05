@@ -1,11 +1,13 @@
+# Usa Node 18
 FROM node:18-alpine
 
+# Define a pasta de trabalho
 WORKDIR /app
 
-# Copia os arquivos de dependências primeiro
+# Copia arquivos de dependências primeiro
 COPY package*.json ./
 
-# Instala todas as dependências (dev e prod)
+# Instala todas as dependências (incluindo devDependencies)
 RUN npm install
 
 # Copia o restante do projeto
@@ -19,3 +21,4 @@ EXPOSE 4173
 
 # Comando para rodar o app
 CMD ["npm", "run", "preview"]
+
