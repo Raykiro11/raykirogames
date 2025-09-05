@@ -1,0 +1,111 @@
+{
+  "navigation": {
+    "home": "Início",
+    "games": "Jogos", 
+    "reviews": "Avaliações",
+    "login": "Entrar",
+    "register": "Cadastrar"
+  },
+  "homepage": {
+    "hero": {
+      "title1": "Descubra os Melhores Jogos",
+      "subtitle": "Encontre resenhas, avaliações e tudo sobre seus jogos favoritos em um só lugar",
+      "searchPlaceholder": "Buscar jogos...",
+      "searchButton": "Buscar",
+      "exploreGames": "Explorar Jogos",
+      "readReviews": "Ler Avaliações"
+    },
+    "popularGames": {
+      "title": "Jogos Populares",
+      "viewAll": "Ver Todos",
+      "loading": "Carregando jogos populares..."
+    },
+    "recentReleases": {
+      "title": "Lançamentos Recentes",
+      "viewAll": "Ver Todos",
+      "loading": "Carregando lançamentos recentes..."
+    },
+    "news": {
+      "title": "Notícias dos Jogos",
+      "loading": "Carregando notícias...",
+      "readMore": "Ler Mais",
+      "justNow": "agora",
+      "ago": "atrás",
+      "yesterday": "ontem"
+    }
+  },
+  "games": {
+    "title": "Todos os Jogos",
+    "subtitle": "Explore nossa vasta coleção de jogos",
+    "common": {
+      "released": "Lançado"
+    },
+    "filters": {
+      "title": "Filtros",
+      "clearAll": "Limpar Tudo",
+      "search": "Buscar",
+      "searchPlaceholder": "Nome do jogo...",
+      "sortBy": "Ordenar por",
+      "genre": "Gênero",
+      "platform": "Plataforma",
+      "allGenres": "Todos os Gêneros",
+      "allPlatforms": "Todas as Plataformas"
+    },
+    "sorting": {
+      "rating": "Melhor Avaliados",
+      "newest": "Mais Recentes",
+      "oldest": "Mais Antigos",
+      "nameAZ": "Nome A-Z",
+      "nameZA": "Nome Z-A",
+      "popular": "Mais Populares"
+    },
+    "results": {
+      "loading": "Carregando jogos...",
+      "found": "jogos encontrados",
+      "noGames": "Nenhum jogo encontrado",
+      "noGamesSubtitle": "Tente ajustar seus filtros ou termos de busca"
+    }
+  },
+  "reviewsPage": {
+    "title": "Avaliações de Jogos",
+    "subtitle": "Descubra as melhores avaliações de críticos e usuários para os jogos mais populares",
+    "criticReviews": {
+      "title": "Avaliações da Crítica",
+      "description": "Jogos bem avaliados pelos principais críticos da indústria",
+      "loading": "Carregando avaliações...",
+      "released": "Lançado em"
+    },
+    "userReviews": {
+      "title": "Avaliações de Usuários",
+      "description": "Veja o que outros jogadores estão dizendo sobre seus jogos favoritos",
+      "callToAction": "Compartilhe sua opinião",
+      "comingSoon": "Em breve você poderá avaliar seus jogos favoritos",
+      "findGameToReview": "Encontrar Jogo para Avaliar",
+      "totalReviews": "Total de Avaliações",
+      "averageRating": "Avaliação Média",
+      "activeReviewers": "Avaliadores Ativos"
+    }
+  },
+  "loginPage": {
+    "title": "Entre na sua conta",
+    "subtitle": "Bem-vindo de volta ao GameReview",
+    "emailLabel": "E-mail *",
+    "passwordLabel": "Senha *",
+    "signInButton": "Entrar",
+    "noAccount": "Não tem uma conta?",
+    "signUp": "Cadastre-se"
+  },
+  "registerPage": {
+    "title": "Crie sua conta",
+    "subtitle": "Junte-se à comunidade GameReview!",
+    "firstNameLabel": "Nome *",
+    "lastNameLabel": "Sobrenome *",
+    "usernameLabel": "Nome de Usuário *",
+    "emailLabel": "E-mail *",
+    "passwordLabel": "Senha *",
+    "confirmPasswordLabel": "Confirmar Senha *",
+    "signUpButton": "Cadastrar",
+    "hasAccount": "Já tem uma conta?",
+    "signIn": "Entrar"
+  }
+}

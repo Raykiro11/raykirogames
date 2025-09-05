@@ -1,0 +1,111 @@
+{
+  "navigation": {
+    "home": "Home",
+    "games": "Games",
+    "reviews": "Reviews", 
+    "login": "Login",
+    "register": "Register"
+  },
+  "homepage": {
+    "hero": {
+      "title1": "Discover the Best Games",
+      "subtitle": "Find reviews, ratings and everything about your favorite games in one place",
+      "searchPlaceholder": "Search games...",
+      "searchButton": "Search",
+      "exploreGames": "Explore Games",
+      "readReviews": "Read Reviews"
+    },
+    "popularGames": {
+      "title": "Popular Games",
+      "viewAll": "View All",
+      "loading": "Loading popular games..."
+    },
+    "recentReleases": {
+      "title": "Recent Releases",
+      "viewAll": "View All", 
+      "loading": "Loading recent releases..."
+    },
+    "news": {
+      "title": "Gaming News",
+      "loading": "Loading news...",
+      "readMore": "Read More",
+      "justNow": "now",
+      "ago": "ago",
+      "yesterday": "yesterday"
+    }
+  },
+  "games": {
+    "title": "All Games",
+    "subtitle": "Explore our vast collection of games",
+    "common": {
+      "released": "Released"
+    },
+    "filters": {
+      "title": "Filters",
+      "clearAll": "Clear All",
+      "search": "Search",
+      "searchPlaceholder": "Game name...",
+      "sortBy": "Sort by",
+      "genre": "Genre",
+      "platform": "Platform",
+      "allGenres": "All Genres",
+      "allPlatforms": "All Platforms"
+    },
+    "sorting": {
+      "rating": "Highest Rated",
+      "newest": "Newest",
+      "oldest": "Oldest",
+      "nameAZ": "Name A-Z",
+      "nameZA": "Name Z-A",
+      "popular": "Most Popular"
+    },
+    "results": {
+      "loading": "Loading games...",
+      "found": "games found",
+      "noGames": "No games found",
+      "noGamesSubtitle": "Try adjusting your filters or search terms"
+    }
+  },
+  "reviewsPage": {
+    "title": "Game Reviews",
+    "subtitle": "Discover the best reviews from critics and users for the most popular games",
+    "criticReviews": {
+      "title": "Critic Reviews",
+      "description": "Games highly rated by leading industry critics",
+      "loading": "Loading reviews...",
+      "released": "Released"
+    },
+    "userReviews": {
+      "title": "User Reviews",
+      "description": "See what other players are saying about their favorite games",
+      "callToAction": "Share your opinion",
+      "comingSoon": "Soon you'll be able to rate your favorite games",
+      "findGameToReview": "Find Game to Review",
+      "totalReviews": "Total Reviews",
+      "averageRating": "Average Rating",
+      "activeReviewers": "Active Reviewers"
+    }
+  },
+  "loginPage": {
+    "title": "Sign in to your account",
+    "subtitle": "Welcome back to GameReview",
+    "emailLabel": "Email *",
+    "passwordLabel": "Password *",
+    "signInButton": "Sign In",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up"
+  },
+  "registerPage": {
+    "title": "Create your account",
+    "subtitle": "Join the GameReview community!",
+    "firstNameLabel": "First Name *",
+    "lastNameLabel": "Last Name *",
+    "usernameLabel": "Username *",
+    "emailLabel": "Email *",
+    "passwordLabel": "Password *",
+    "confirmPasswordLabel": "Confirm Password *",
+    "signUpButton": "Register",
+    "hasAccount": "Already have an account?",
+    "signIn": "Sign In"
+  }
+}
