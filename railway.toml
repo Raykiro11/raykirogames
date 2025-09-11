@@ -1,5 +1,3 @@
 [build]
+builder = "dockerfile"
 root = "frontend/game-review-frontend"
-
-[start]
-cmd = "npm run preview"
