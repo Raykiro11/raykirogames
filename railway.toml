@@ -1,7 +1,5 @@
 [build]
-# Pasta onde está o frontend
 root = "frontend/game-review-frontend"
 
 [start]
-# Comando para iniciar o app
 cmd = "npm run preview"

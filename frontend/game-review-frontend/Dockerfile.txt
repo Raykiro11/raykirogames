@@ -1,21 +1,23 @@
+# Usar Node 18 como base
 FROM node:18-alpine
 
+# Definir diretório de trabalho
 WORKDIR /app
 
-# Copia apenas os arquivos de dependências
+# Copiar apenas os arquivos de dependências primeiro
 COPY package*.json ./
 
-# Instala todas as dependências (incluindo devDependencies)
+# Instalar TODAS as dependências (não omite dev)
 RUN npm install
 
-# Copia o restante do projeto
+# Copiar o resto do código
 COPY . .
 
-# Build do Vite
+# Fazer build do Vite
 RUN npm run build
 
-# Porta padrão do Vite preview
+# Expor a porta do preview
 EXPOSE 4173
 
-# Comando para iniciar o app
+# Rodar o app com preview
 CMD ["npm", "run", "preview"]
