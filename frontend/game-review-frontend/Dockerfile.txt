@@ -1,23 +1,35 @@
-# Usar Node 18 como base
-FROM node:18-alpine
+# Etapa 1: build
+FROM node:18-alpine AS builder
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar apenas os arquivos de dependências primeiro
+# Copia apenas arquivos de dependências primeiro
 COPY package*.json ./
 
-# Instalar TODAS as dependências (não omite dev)
+# Instala todas as dependências (inclui devDependencies como o Vite)
 RUN npm install
 
-# Copiar o resto do código
+# Copia o resto do código
 COPY . .
 
-# Fazer build do Vite
+# Faz o build do projeto com Vite
 RUN npm run build
 
-# Expor a porta do preview
+
+# Etapa 2: runtime (produção)
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copia apenas os arquivos de build da etapa anterior
+COPY --from=builder /app/dist ./dist
+COPY package*.json ./
+
+# Instala apenas as dependências necessárias em produção
+RUN npm install --omit=dev
+
+# Expor a porta usada pelo Vite preview
 EXPOSE 4173
 
-# Rodar o app com preview
-CMD ["npm", "run", "preview"]
+# Comando para rodar o preview do build
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
