@@ -1,8 +1,8 @@
-# Etapa 1: build
+# Etapa 1: build (tem que ter o Vite aqui)
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copia configs e instala dependências (com devDeps, para o Vite estar disponível)
+# Copia configs e instala TODAS as deps (incluindo dev)
 COPY package*.json ./
 RUN npm install
 
@@ -10,15 +10,15 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Etapa 2: runtime
+# Etapa 2: runtime (mais leve, sem devDeps)
 FROM node:18-alpine
 WORKDIR /app
 
-# Copia apenas o necessário para rodar
+# Copia somente o dist gerado e package.json
 COPY --from=builder /app/dist ./dist
 COPY package*.json ./
 
-# Instala apenas as deps de produção (sem dev)
+# Instala apenas deps de produção
 RUN npm install --omit=dev
 
 EXPOSE 4173
