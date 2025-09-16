@@ -3,10 +3,10 @@ FROM node:18-alpine AS build
 
 WORKDIR /app
 
-# Copiar arquivos de dependências para cache
+# Copiar package.json e package-lock.json
 COPY package*.json ./
 
-# Instalar todas as dependências, incluindo devDependencies (Vite precisa)
+# Instalar todas as dependências, incluindo dev (Vite)
 RUN npm ci --include=dev
 
 # Copiar todo o código
@@ -21,7 +21,7 @@ RUN npm run build
 # ---- Etapa de produção com Nginx ----
 FROM nginx:alpine
 
-# Copiar build do frontend
+# Copiar build para a pasta padrão do Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Copiar configuração customizada do Nginx
