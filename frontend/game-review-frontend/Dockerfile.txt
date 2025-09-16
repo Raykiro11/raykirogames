@@ -1,35 +1,27 @@
 # Etapa 1: build
 FROM node:18-alpine AS builder
-
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# Copia configs e instala dependências (com devDeps, para o Vite estar disponível)
 COPY package*.json ./
-
-# Instalar todas as dependências
 RUN npm install
 
-# Copiar código
+# Copia o resto e roda build
 COPY . .
-
-# Build do Vite
 RUN npm run build
 
 # Etapa 2: runtime
 FROM node:18-alpine
-
 WORKDIR /app
 
-# Copiar apenas os arquivos de build
+# Copia apenas o necessário para rodar
 COPY --from=builder /app/dist ./dist
 COPY package*.json ./
 
-# Instalar apenas dependências de produção
+# Instala apenas as deps de produção (sem dev)
 RUN npm install --omit=dev
 
-# Expor porta do Vite preview
 EXPOSE 4173
-
-# Rodar o frontend
 CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
+
 
