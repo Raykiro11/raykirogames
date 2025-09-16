@@ -22,7 +22,7 @@ app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 # API RAWG Configuration - Usar a chave do .env
-RAWG_API_KEY = os.getenv('RAWG_API_KEY') or 'e1066464c8a1476782a72ce7ce437f1e'
+RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '5ff00f2791e447d0aee2156bc93c4b7e'
 RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Inicializar extensões
