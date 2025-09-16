@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react' 
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
+
+const API_BASE = 'https://api.raykirogames.com'
 
 function GamesPage() {
   const { t } = useTranslation('common')
@@ -31,11 +33,11 @@ function GamesPage() {
     if (node) observer.current.observe(node)
   }, [loading, loadingMore, hasMore])
 
-  // Buscar gêneros da API RAWG
+  // Buscar gêneros e plataformas da API
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        const response = await fetch('http://localhost:5002/api/games/genres')
+        const response = await fetch(`${API_BASE}/api/games/genres`)
         const data = await response.json()
         if (data.status === 'success') {
           setGenres(data.genres)
@@ -47,7 +49,7 @@ function GamesPage() {
 
     const fetchPlatforms = async () => {
       try {
-        const response = await fetch('http://localhost:5002/api/games/platforms')
+        const response = await fetch(`${API_BASE}/api/games/platforms`)
         const data = await response.json()
         if (data.status === 'success') {
           setPlatforms(data.platforms)
@@ -71,7 +73,7 @@ function GamesPage() {
     }
 
     try {
-      let url = 'http://localhost:5002/api/games'
+      let url = `${API_BASE}/api/games`
       const params = new URLSearchParams()
 
       if (filters.search) params.append('search', filters.search)
@@ -263,6 +265,7 @@ function GamesPage() {
                   <option value="-added">{t('games.sorting.popular')}</option>
                 </select>
               </div>
+
               {/* Genre Filter */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
