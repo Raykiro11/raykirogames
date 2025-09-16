@@ -1,38 +1,32 @@
-# ---- Etapa de build ----
+# Usar imagem oficial Node
 FROM node:18-alpine AS build
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar package.json e package-lock.json primeiro (para cache de dependências)
+# Copiar apenas arquivos de dependências primeiro (para cache otimizado)
 COPY package*.json ./
 
-# Instalar dependências
-RUN npm ci
+# Instalar dependências (incluindo devDependencies para build do Vite)
+RUN npm ci --include=dev
 
-# Copiar todo o código para dentro do container
+# Copiar todo o código
 COPY . .
+
+# Garantir que o vite seja executável
+RUN chmod +x node_modules/.bin/vite
 
 # Rodar build do Vite
 RUN npm run build
 
+# ------------------------
+# Servidor final (Nginx)
+# ------------------------
+FROM nginx:alpine
 
-# ---- Etapa de produção ----
-FROM node:18-alpine
+# Copiar build para a pasta padrão do nginx
+COPY --from=build /app/dist /usr/share/nginx/html
 
-WORKDIR /app
+# Expor porta
+EXPOSE 80
 
-# Instalar um servidor HTTP para servir os arquivos estáticos
-RUN npm install -g serve
-
-# Copiar build da etapa anterior
-COPY --from=build /app/dist ./dist
-
-# Expor porta usada pelo Railway
-EXPOSE 3000
-
-# Comando para iniciar o servidor
-CMD ["serve", "-s", "dist", "-l", "3000"]
-
-
-
+CMD ["nginx", "-g", "daemon off;"]
