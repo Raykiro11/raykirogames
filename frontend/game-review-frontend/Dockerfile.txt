@@ -1,26 +1,38 @@
-# Etapa 1: build
-FROM node:18-alpine AS builder
+# ---- Etapa de build ----
+FROM node:18-alpine AS build
+
+# Definir diretório de trabalho
 WORKDIR /app
 
+# Copiar package.json e package-lock.json primeiro (para cache de dependências)
 COPY package*.json ./
-# usa npm ci para instalar todas as dependências (inclusive dev)
+
+# Instalar dependências
 RUN npm ci
 
+# Copiar todo o código para dentro do container
 COPY . .
+
+# Rodar build do Vite
 RUN npm run build
 
-# Etapa 2: runtime (apenas o que é necessário para rodar)
+
+# ---- Etapa de produção ----
 FROM node:18-alpine
+
 WORKDIR /app
 
-COPY --from=builder /app/dist ./dist
-COPY package*.json ./
+# Instalar um servidor HTTP para servir os arquivos estáticos
+RUN npm install -g serve
 
-# instala apenas dependências de produção
-RUN npm ci --omit=dev
+# Copiar build da etapa anterior
+COPY --from=build /app/dist ./dist
 
-EXPOSE 4173
-CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
+# Expor porta usada pelo Railway
+EXPOSE 3000
+
+# Comando para iniciar o servidor
+CMD ["serve", "-s", "dist", "-l", "3000"]
 
 
 
