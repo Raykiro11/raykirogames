@@ -1,27 +1,26 @@
-# Etapa 1: build (tem que ter o Vite aqui)
+# Etapa 1: build
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copia configs e instala TODAS as deps (incluindo dev)
 COPY package*.json ./
-RUN npm install
+# usa npm ci para instalar todas as dependências (inclusive dev)
+RUN npm ci
 
-# Copia o resto e roda build
 COPY . .
 RUN npm run build
 
-# Etapa 2: runtime (mais leve, sem devDeps)
+# Etapa 2: runtime (apenas o que é necessário para rodar)
 FROM node:18-alpine
 WORKDIR /app
 
-# Copia somente o dist gerado e package.json
 COPY --from=builder /app/dist ./dist
 COPY package*.json ./
 
-# Instala apenas deps de produção
-RUN npm install --omit=dev
+# instala apenas dependências de produção
+RUN npm ci --omit=dev
 
 EXPOSE 4173
 CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
+
 
 
