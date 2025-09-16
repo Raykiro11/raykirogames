@@ -1,12 +1,12 @@
-# Usar imagem oficial Node
+# ---- Etapa de build ----
 FROM node:18-alpine AS build
 
 WORKDIR /app
 
-# Copiar apenas arquivos de dependências primeiro (para cache otimizado)
+# Copiar arquivos de dependências para cache
 COPY package*.json ./
 
-# Instalar dependências (incluindo devDependencies para build do Vite)
+# Instalar todas as dependências, incluindo devDependencies (Vite precisa)
 RUN npm ci --include=dev
 
 # Copiar todo o código
@@ -18,15 +18,17 @@ RUN chmod +x node_modules/.bin/vite
 # Rodar build do Vite
 RUN npm run build
 
-# ------------------------
-# Servidor final (Nginx)
-# ------------------------
+# ---- Etapa de produção com Nginx ----
 FROM nginx:alpine
 
-# Copiar build para a pasta padrão do nginx
+# Copiar build do frontend
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Expor porta
+# Copiar configuração customizada do Nginx
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expor porta 80
 EXPOSE 80
 
+# Rodar Nginx em primeiro plano
 CMD ["nginx", "-g", "daemon off;"]
