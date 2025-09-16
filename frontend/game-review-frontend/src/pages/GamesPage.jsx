@@ -35,7 +35,7 @@ function GamesPage() {
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        const response = await fetch('https://www.raykirogames/api/games/genres')
+        const response = await fetch('https://api.raykirogames.com/api/games/genres')
         const data = await response.json()
         if (data.status === 'success') {
           setGenres(data.genres)
@@ -47,7 +47,7 @@ function GamesPage() {
 
     const fetchPlatforms = async () => {
       try {
-        const response = await fetch('https://www.raykirogames/api/games/genres')
+        const response = await fetch('https://api.raykirogames.com/api/games/platforms')
         const data = await response.json()
         if (data.status === 'success') {
           setPlatforms(data.platforms)
@@ -71,7 +71,7 @@ function GamesPage() {
     }
 
     try {
-      let url = 'https://www.raykirogames/api/games/genres'
+      let url = 'https://api.raykirogames.com/api/games'
       const params = new URLSearchParams()
 
       if (filters.search) params.append('search', filters.search)
