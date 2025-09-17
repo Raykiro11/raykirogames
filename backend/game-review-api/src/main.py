@@ -574,6 +574,7 @@ def login():
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5002))  # Railway injeta PORT, local usa 5002
     debug = IS_DEV
+     IS_DEV = os.getenv("FLASK_ENV", "development") == "development"
 
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {os.getenv('RAWG_API_KEY')[:10]}..." if os.getenv("RAWG_API_KEY") else "❌ No RAWG API Key found")
