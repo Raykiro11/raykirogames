@@ -7,10 +7,11 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
+      // redireciona todas as chamadas /api para o backend local
       '/api': {
         target: 'http://localhost:5002',
         changeOrigin: true,
-        secure: false
+        secure: false,
       }
     }
   }
