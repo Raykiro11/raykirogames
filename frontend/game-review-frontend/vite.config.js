@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // redireciona todas as chamadas /api para o backend local
       '/api': {
-        target: 'http://localhost:5002',
+        target: 'https://www.raykirogames.com',
         changeOrigin: true,
         secure: false,
       }
