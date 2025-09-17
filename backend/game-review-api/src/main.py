@@ -17,8 +17,8 @@ from flask_limiter.util import get_remote_address
 
 # Configuração básica
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-key'
-app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 # API RAWG Configuration - Usar a chave do .env
@@ -26,7 +26,9 @@ RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '2f8b3853d2fd47cabd77e4d78a6cf96f'
 RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Inicializar extensões
-CORS(app, origins=['https://www.raykirogames.com', 'http://localhost:5173'])
+cors_origins = os.getenv('CORS_ORIGINS', '').split(',')
+CORS(app, origins=cors_origins)
+
 jwt = JWTManager(app)
 limiter = Limiter(
     key_func=get_remote_address,
