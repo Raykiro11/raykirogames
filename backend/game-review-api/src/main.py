@@ -15,25 +15,18 @@ from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# Detecta ambiente
-ENV = os.getenv('ENVIRONMENT', 'development')  # 'development' ou 'production'
-IS_PROD = ENV.lower() == 'production'
-
 # Configuração básica
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+app.config['SECRET_KEY'] = 'dev-secret-key'
+app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
-# CORS automático
-if IS_PROD:
-    # Permite apenas o domínio da produção
-    CORS(app, origins=['https://www.raykirogames.com'])
-else:
-    # Permite qualquer origem para desenvolvimento local
-    CORS(app, origins=['http://localhost:5173', 'http://127.0.0.1:5173'])
+# API RAWG Configuration - Usar a chave do .env
+RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '5ff00f2791e447d0aee2156bc93c4b7e'
+RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Inicializar extensões
+CORS(app, origins=['https://www.raykirogames.com'])
 jwt = JWTManager(app)
 limiter = Limiter(
     key_func=get_remote_address,
@@ -41,11 +34,7 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
-# Configurações da API RAWG
-RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '5ff00f2791e447d0aee2156bc93c4b7e'
-RAWG_BASE_URL = 'https://api.rawg.io/api'
-
-# Cache simples
+# Cache simples para evitar requisições desnecessárias
 cache = {}
 CACHE_DURATION = 300  # 5 minutos
 
@@ -572,13 +561,9 @@ def login():
     })
 
 if __name__ == '__main__':
-    import os
-    IS_DEV = os.getenv("FLASK_ENV", "development") == "development"
-
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
-    print("🌐 Server will be available at: http://localhost:5002")
-    app.run(host='0.0.0.0', port=5002, debug=IS_DEV)
-
+    print("🌐 Server will be available at: https://www.raykirogames.com")
+    app.run(host='0.0.0.0', port=80, debug=False)
 
 
