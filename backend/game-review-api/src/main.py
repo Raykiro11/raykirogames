@@ -561,9 +561,14 @@ def login():
     })
 
 if __name__ == '__main__':
+    port = int(os.getenv("PORT", 5002))  # Railway define PORT, local usa 5002
+    debug = os.getenv("FLASK_ENV") == "development"
+
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
-    print("🌐 Server will be available at: https://www.raykirogames.com")
-    app.run(host='0.0.0.0', port=80, debug=False)
+    print(f"🌐 Server will be available at: http://localhost:{port}" if debug else "🌐 Server running in production mode")
+
+    app.run(host="0.0.0.0", port=port, debug=debug)
+
 
 
