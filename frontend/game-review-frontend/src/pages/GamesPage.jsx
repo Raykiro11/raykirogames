@@ -39,9 +39,7 @@ function GamesPage() {
       try {
         const response = await fetch(`${API_BASE}/api/games/genres`)
         const data = await response.json()
-        if (data.status === 'success') {
-          setGenres(data.genres)
-        }
+        if (data.status === 'success') setGenres(data.genres)
       } catch (error) {
         console.error(t('games.errors.fetchGenres'), error)
       }
@@ -51,9 +49,7 @@ function GamesPage() {
       try {
         const response = await fetch(`${API_BASE}/api/games/platforms`)
         const data = await response.json()
-        if (data.status === 'success') {
-          setPlatforms(data.platforms)
-        }
+        if (data.status === 'success') setPlatforms(data.platforms)
       } catch (error) {
         console.error(t('games.errors.fetchPlatforms'), error)
       }
@@ -74,21 +70,17 @@ function GamesPage() {
     try {
       let url = `${API_BASE}/api/games`
       const params = new URLSearchParams()
-
       if (filters.search) params.append('search', filters.search)
       if (filters.genre) params.append('genres', filters.genre)
       if (filters.platform) params.append('platforms', filters.platform)
       params.append('ordering', filters.ordering)
       params.append('page_size', '20')
       params.append('page', resetGames ? '1' : currentPage.toString())
+      if (params.toString()) url += '?' + params.toString()
 
-      if (params.toString()) {
-        url += '?' + params.toString()
-      }
-
-      console.log('API_BASE:', API_BASE);
-console.log('Fetching URL:', url);
-
+      // Logs de depuração
+      console.log('API_BASE:', API_BASE)
+      console.log('Fetching URL:', url)
 
       const response = await fetch(url)
       const data = await response.json()
@@ -118,33 +110,21 @@ console.log('Fetching URL:', url);
   }
 
   const loadMoreGames = useCallback(() => {
-    if (!loadingMore && hasMore) {
-      fetchGames(false)
-    }
+    if (!loadingMore && hasMore) fetchGames(false)
   }, [loadingMore, hasMore, currentPage, filters, games])
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchGames(true)
-    }, 500)
+    const timeoutId = setTimeout(() => fetchGames(true), 500)
     return () => clearTimeout(timeoutId)
   }, [filters])
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }))
+    setFilters(prev => ({ ...prev, [key]: value }))
     setHasMore(true)
   }
 
   const clearFilters = () => {
-    setFilters({
-      genre: '',
-      platform: '',
-      search: '',
-      ordering: '-added'
-    })
+    setFilters({ genre: '', platform: '', search: '', ordering: '-added' })
     setHasMore(true)
   }
 
@@ -155,7 +135,6 @@ console.log('Fetching URL:', url);
 
   const GameCard = ({ game, index }) => {
     const isLast = index === games.length - 1
-
     return (
       <Link
         to={`/games/${game.id}`}
@@ -169,9 +148,7 @@ console.log('Fetching URL:', url);
                 src={game.background_image}
                 alt={game.name}
                 className="w-full h-full object-cover"
-                onError={e => {
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
-                }}
+                onError={e => { e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==' }}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-500">
@@ -180,16 +157,12 @@ console.log('Fetching URL:', url);
             )}
           </div>
           <div className="p-4">
-            <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>
-              {game.name}
-            </h3>
+            <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
             <div className="flex items-center mb-2">
               <span className="text-yellow-500 text-sm">{renderStars(game.rating)}</span>
               <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
             </div>
-            <p className="text-gray-600 text-sm truncate">
-              {game.genres.join(', ') || t('games.genres.various')}
-            </p>
+            <p className="text-gray-600 text-sm truncate">{game.genres.join(', ') || t('games.genres.various')}</p>
             <p className="text-gray-500 text-xs mt-1 truncate">
               {game.platforms.slice(0, 3).join(', ')}
               {game.platforms.length > 3 && '...'}
@@ -220,18 +193,11 @@ console.log('Fetching URL:', url);
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">{t('games.filters.title')}</h3>
-                <button
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {t('games.filters.clearAll')}
-                </button>
+                <button onClick={clearFilters} className="text-sm text-blue-600 hover:text-blue-800">{t('games.filters.clearAll')}</button>
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.search')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.search')}</label>
                 <input
                   type="text"
                   placeholder={t('games.filters.searchPlaceholder')}
@@ -242,9 +208,7 @@ console.log('Fetching URL:', url);
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.sortBy')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.sortBy')}</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.ordering}
@@ -260,9 +224,7 @@ console.log('Fetching URL:', url);
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.genre')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.genre')}</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.genre}
@@ -270,17 +232,13 @@ console.log('Fetching URL:', url);
                 >
                   <option value="">{t('games.filters.allGenres')}</option>
                   {genres.map((genre, index) => (
-                    <option key={index} value={genre}>
-                      {genre}
-                    </option>
+                    <option key={index} value={genre}>{genre}</option>
                   ))}
                 </select>
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.platform')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.platform')}</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.platform}
@@ -288,9 +246,7 @@ console.log('Fetching URL:', url);
                 >
                   <option value="">{t('games.filters.allPlatforms')}</option>
                   {platforms.map((platform, index) => (
-                    <option key={index} value={platform}>
-                      {platform}
-                    </option>
+                    <option key={index} value={platform}>{platform}</option>
                   ))}
                 </select>
               </div>
@@ -299,34 +255,19 @@ console.log('Fetching URL:', url);
                 {filters.search && (
                   <div className="flex items-center justify-between bg-blue-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.search')}: {filters.search}</span>
-                    <button
-                      onClick={() => handleFilterChange('search', '')}
-                      className="text-blue-600 hover:text-blue-800 ml-2"
-                    >
-                      ×
-                    </button>
+                    <button onClick={() => handleFilterChange('search', '')} className="text-blue-600 hover:text-blue-800 ml-2">×</button>
                   </div>
                 )}
                 {filters.genre && (
                   <div className="flex items-center justify-between bg-green-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.genre')}: {filters.genre}</span>
-                    <button
-                      onClick={() => handleFilterChange('genre', '')}
-                      className="text-green-600 hover:text-green-800 ml-2"
-                    >
-                      ×
-                    </button>
+                    <button onClick={() => handleFilterChange('genre', '')} className="text-green-600 hover:text-green-800 ml-2">×</button>
                   </div>
                 )}
                 {filters.platform && (
                   <div className="flex items-center justify-between bg-purple-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.platform')}: {filters.platform}</span>
-                    <button
-                      onClick={() => handleFilterChange('platform', '')}
-                      className="text-purple-600 hover:text-purple-800 ml-2"
-                    >
-                      ×
-                    </button>
+                    <button onClick={() => handleFilterChange('platform', '')} className="text-purple-600 hover:text-purple-800 ml-2">×</button>
                   </div>
                 )}
               </div>
@@ -360,17 +301,11 @@ console.log('Fetching URL:', url);
                   <h2 className="text-xl font-semibold text-gray-800">
                     {games.length} de {totalGames.toLocaleString()} {t('games.results.found')}
                   </h2>
-                  {hasMore && (
-                    <div className="text-sm text-gray-500">
-                      {t('games.results.scrollLoad')}
-                    </div>
-                  )}
+                  {hasMore && <div className="text-sm text-gray-500">{t('games.results.scrollLoad')}</div>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {games.map((game, index) => (
-                    <GameCard key={`${game.id}-${index}`} game={game} index={index} />
-                  ))}
+                  {games.map((game, index) => <GameCard key={`${game.id}-${index}`} game={game} index={index} />)}
                 </div>
 
                 {loadingMore && (
