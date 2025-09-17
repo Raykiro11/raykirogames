@@ -2,12 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
+// Defina sua URL base da API (ex: Railway ou localhost)
+const API_BASE = process.env.REACT_APP_API_BASE || ''
+
 function GamesPage() {
   const { t } = useTranslation('common')
-
-  // Base URL do backend (configurada no .env)
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
-
   const [games, setGames] = useState([])
   const [genres, setGenres] = useState([])
   const [platforms, setPlatforms] = useState([])
@@ -24,21 +23,17 @@ function GamesPage() {
   })
 
   const observer = useRef()
-  const lastGameElementRef = useCallback(
-    node => {
-      if (loading || loadingMore) return
-      if (observer.current) observer.current.disconnect()
-      observer.current = new IntersectionObserver(entries => {
-        if (entries[0].isIntersecting && hasMore) {
-          loadMoreGames()
-        }
-      })
-      if (node) observer.current.observe(node)
-    },
-    [loading, loadingMore, hasMore, games.length]
-  )
+  const lastGameElementRef = useCallback(node => {
+    if (loading || loadingMore) return
+    if (observer.current) observer.current.disconnect()
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreGames()
+      }
+    })
+    if (node) observer.current.observe(node)
+  }, [loading, loadingMore, hasMore])
 
-  // Buscar gêneros e plataformas
   useEffect(() => {
     const fetchGenres = async () => {
       try {
@@ -66,9 +61,8 @@ function GamesPage() {
 
     fetchGenres()
     fetchPlatforms()
-  }, [API_BASE, t])
+  }, [t])
 
-  // Buscar jogos
   const fetchGames = async (resetGames = true) => {
     if (resetGames) {
       setLoading(true)
@@ -78,7 +72,9 @@ function GamesPage() {
     }
 
     try {
+      let url = `${API_BASE}/api/games`
       const params = new URLSearchParams()
+
       if (filters.search) params.append('search', filters.search)
       if (filters.genre) params.append('genres', filters.genre)
       if (filters.platform) params.append('platforms', filters.platform)
@@ -86,7 +82,9 @@ function GamesPage() {
       params.append('page_size', '20')
       params.append('page', resetGames ? '1' : currentPage.toString())
 
-      const url = `${API_BASE}/api/games${params.toString() ? '?' + params.toString() : ''}`
+      if (params.toString()) {
+        url += '?' + params.toString()
+      }
 
       console.log('Fetching games from URL:', url)
 
@@ -123,7 +121,6 @@ function GamesPage() {
     }
   }, [loadingMore, hasMore, currentPage, filters, games])
 
-  // Buscar jogos quando filtros mudarem (debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchGames(true)
@@ -132,12 +129,20 @@ function GamesPage() {
   }, [filters])
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value }))
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }))
     setHasMore(true)
   }
 
   const clearFilters = () => {
-    setFilters({ genre: '', platform: '', search: '', ordering: '-added' })
+    setFilters({
+      genre: '',
+      platform: '',
+      search: '',
+      ordering: '-added'
+    })
     setHasMore(true)
   }
 
@@ -150,7 +155,11 @@ function GamesPage() {
     const isLast = index === games.length - 1
 
     return (
-      <Link to={`/games/${game.id}`} className="block" ref={isLast ? lastGameElementRef : null}>
+      <Link
+        to={`/games/${game.id}`}
+        className="block"
+        ref={isLast ? lastGameElementRef : null}
+      >
         <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300 cursor-pointer">
           <div className="h-48 bg-gray-200 overflow-hidden">
             {game.background_image ? (
@@ -159,8 +168,7 @@ function GamesPage() {
                 alt={game.name}
                 className="w-full h-full object-cover"
                 onError={e => {
-                  e.target.src =
-                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
+                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
                 }}
               />
             ) : (
@@ -197,7 +205,6 @@ function GamesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">{t('games.title')}</h1>
@@ -207,19 +214,22 @@ function GamesPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar */}
           <div className="lg:w-1/4">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">{t('games.filters.title')}</h3>
-                <button onClick={clearFilters} className="text-sm text-blue-600 hover:text-blue-800">
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
                   {t('games.filters.clearAll')}
                 </button>
               </div>
 
-              {/* Search */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.search')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('games.filters.search')}
+                </label>
                 <input
                   type="text"
                   placeholder={t('games.filters.searchPlaceholder')}
@@ -229,9 +239,10 @@ function GamesPage() {
                 />
               </div>
 
-              {/* Sort */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.sortBy')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('games.filters.sortBy')}
+                </label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.ordering}
@@ -246,9 +257,10 @@ function GamesPage() {
                 </select>
               </div>
 
-              {/* Genre */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.genre')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('games.filters.genre')}
+                </label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.genre}
@@ -263,9 +275,10 @@ function GamesPage() {
                 </select>
               </div>
 
-              {/* Platform */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.platform')}</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('games.filters.platform')}
+                </label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.platform}
@@ -280,12 +293,14 @@ function GamesPage() {
                 </select>
               </div>
 
-              {/* Active Filters */}
               <div className="space-y-2">
                 {filters.search && (
                   <div className="flex items-center justify-between bg-blue-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.search')}: {filters.search}</span>
-                    <button onClick={() => handleFilterChange('search', '')} className="text-blue-600 hover:text-blue-800 ml-2">
+                    <button
+                      onClick={() => handleFilterChange('search', '')}
+                      className="text-blue-600 hover:text-blue-800 ml-2"
+                    >
                       ×
                     </button>
                   </div>
@@ -293,7 +308,10 @@ function GamesPage() {
                 {filters.genre && (
                   <div className="flex items-center justify-between bg-green-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.genre')}: {filters.genre}</span>
-                    <button onClick={() => handleFilterChange('genre', '')} className="text-green-600 hover:text-green-800 ml-2">
+                    <button
+                      onClick={() => handleFilterChange('genre', '')}
+                      className="text-green-600 hover:text-green-800 ml-2"
+                    >
                       ×
                     </button>
                   </div>
@@ -301,14 +319,16 @@ function GamesPage() {
                 {filters.platform && (
                   <div className="flex items-center justify-between bg-purple-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.platform')}: {filters.platform}</span>
-                    <button onClick={() => handleFilterChange('platform', '')} className="text-purple-600 hover:text-purple-800 ml-2">
+                    <button
+                      onClick={() => handleFilterChange('platform', '')}
+                      className="text-purple-600 hover:text-purple-800 ml-2"
+                    >
                       ×
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Stats */}
               <div className="mt-6 pt-4 border-t border-gray-200">
                 <div className="text-sm text-gray-600">
                   <div className="flex justify-between mb-1">
@@ -324,7 +344,6 @@ function GamesPage() {
             </div>
           </div>
 
-          {/* Main Content */}
           <div className="lg:w-3/4">
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -339,7 +358,11 @@ function GamesPage() {
                   <h2 className="text-xl font-semibold text-gray-800">
                     {games.length} de {totalGames.toLocaleString()} {t('games.results.found')}
                   </h2>
-                  {hasMore && <div className="text-sm text-gray-500">{t('games.results.scrollLoad')}</div>}
+                  {hasMore && (
+                    <div className="text-sm text-gray-500">
+                      {t('games.results.scrollLoad')}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -359,7 +382,9 @@ function GamesPage() {
 
                 {!hasMore && games.length > 0 && (
                   <div className="text-center py-8">
-                    <div className="text-gray-500">🎮 {t('games.results.allGamesViewed', { count: games.length })}</div>
+                    <div className="text-gray-500">
+                      🎮 {t('games.results.allGamesViewed', { count: games.length })}
+                    </div>
                   </div>
                 )}
 
