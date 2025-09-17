@@ -4,6 +4,10 @@ import { Link } from 'react-router-dom'
 
 function GamesPage() {
   const { t } = useTranslation('common')
+
+  // Base URL do backend (configurada no .env)
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || ''
+
   const [games, setGames] = useState([])
   const [genres, setGenres] = useState([])
   const [platforms, setPlatforms] = useState([])
@@ -20,22 +24,25 @@ function GamesPage() {
   })
 
   const observer = useRef()
-  const lastGameElementRef = useCallback(node => {
-    if (loading || loadingMore) return
-    if (observer.current) observer.current.disconnect()
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        loadMoreGames()
-      }
-    })
-    if (node) observer.current.observe(node)
-  }, [loading, loadingMore, hasMore])
+  const lastGameElementRef = useCallback(
+    node => {
+      if (loading || loadingMore) return
+      if (observer.current) observer.current.disconnect()
+      observer.current = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && hasMore) {
+          loadMoreGames()
+        }
+      })
+      if (node) observer.current.observe(node)
+    },
+    [loading, loadingMore, hasMore, games.length]
+  )
 
-  // Buscar gêneros da API RAWG
+  // Buscar gêneros e plataformas
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        const response = await fetch('/api/games/genres')
+        const response = await fetch(`${API_BASE}/api/games/genres`)
         const data = await response.json()
         if (data.status === 'success') {
           setGenres(data.genres)
@@ -47,7 +54,7 @@ function GamesPage() {
 
     const fetchPlatforms = async () => {
       try {
-        const response = await fetch('/api/games/platforms')
+        const response = await fetch(`${API_BASE}/api/games/platforms`)
         const data = await response.json()
         if (data.status === 'success') {
           setPlatforms(data.platforms)
@@ -59,9 +66,9 @@ function GamesPage() {
 
     fetchGenres()
     fetchPlatforms()
-  }, [t])
+  }, [API_BASE, t])
 
-  // Função para buscar jogos (primeira página ou reset)
+  // Buscar jogos
   const fetchGames = async (resetGames = true) => {
     if (resetGames) {
       setLoading(true)
@@ -71,9 +78,7 @@ function GamesPage() {
     }
 
     try {
-      let url = '/api/games'
       const params = new URLSearchParams()
-
       if (filters.search) params.append('search', filters.search)
       if (filters.genre) params.append('genres', filters.genre)
       if (filters.platform) params.append('platforms', filters.platform)
@@ -81,11 +86,8 @@ function GamesPage() {
       params.append('page_size', '20')
       params.append('page', resetGames ? '1' : currentPage.toString())
 
-      if (params.toString()) {
-        url += '?' + params.toString()
-      }
+      const url = `${API_BASE}/api/games${params.toString() ? '?' + params.toString() : ''}`
 
-      // Debug rápido: verifique a URL que está sendo chamada
       console.log('Fetching games from URL:', url)
 
       const response = await fetch(url)
@@ -96,9 +98,6 @@ function GamesPage() {
           setGames(data.games)
           setCurrentPage(2)
         } else {
-          const newGames = data.games.filter(newGame =>
-            !games.some(existingGame => existingGame.id === newGame.id)
-          )
           setGames(prevGames => [
             ...prevGames,
             ...data.games.filter(newGame => !prevGames.some(g => g.id === newGame.id))
@@ -118,41 +117,31 @@ function GamesPage() {
     }
   }
 
-  // Função para carregar mais jogos (scroll infinito)
   const loadMoreGames = useCallback(() => {
     if (!loadingMore && hasMore) {
       fetchGames(false)
     }
   }, [loadingMore, hasMore, currentPage, filters, games])
 
-  // Buscar jogos quando filtros mudarem
+  // Buscar jogos quando filtros mudarem (debounce)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchGames(true)
-    }, 500) // Debounce de 500ms
-
+    }, 500)
     return () => clearTimeout(timeoutId)
   }, [filters])
-  
+
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }))
+    setFilters(prev => ({ ...prev, [key]: value }))
     setHasMore(true)
   }
 
   const clearFilters = () => {
-    setFilters({
-      genre: '',
-      platform: '',
-      search: '',
-      ordering: '-added'
-    })
+    setFilters({ genre: '', platform: '', search: '', ordering: '-added' })
     setHasMore(true)
   }
 
-  const renderStars = (rating) => {
+  const renderStars = rating => {
     const stars = Math.round(rating)
     return '★'.repeat(stars) + '☆'.repeat(5 - stars)
   }
@@ -161,11 +150,7 @@ function GamesPage() {
     const isLast = index === games.length - 1
 
     return (
-      <Link
-        to={`/games/${game.id}`}
-        className="block"
-        ref={isLast ? lastGameElementRef : null}
-      >
+      <Link to={`/games/${game.id}`} className="block" ref={isLast ? lastGameElementRef : null}>
         <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300 cursor-pointer">
           <div className="h-48 bg-gray-200 overflow-hidden">
             {game.background_image ? (
@@ -173,8 +158,9 @@ function GamesPage() {
                 src={game.background_image}
                 alt={game.name}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
+                onError={e => {
+                  e.target.src =
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
                 }}
               />
             ) : (
@@ -188,12 +174,8 @@ function GamesPage() {
               {game.name}
             </h3>
             <div className="flex items-center mb-2">
-              <span className="text-yellow-500 text-sm">
-                {renderStars(game.rating)}
-              </span>
-              <span className="ml-2 text-gray-600 text-sm">
-                {game.rating}/5
-              </span>
+              <span className="text-yellow-500 text-sm">{renderStars(game.rating)}</span>
+              <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
             </div>
             <p className="text-gray-600 text-sm truncate">
               {game.genres.join(', ') || t('games.genres.various')}
@@ -225,42 +207,35 @@ function GamesPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar - Filters */}
+          {/* Sidebar */}
           <div className="lg:w-1/4">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">{t('games.filters.title')}</h3>
-                <button 
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
+                <button onClick={clearFilters} className="text-sm text-blue-600 hover:text-blue-800">
                   {t('games.filters.clearAll')}
                 </button>
               </div>
 
               {/* Search */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.search')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.search')}</label>
                 <input
                   type="text"
                   placeholder={t('games.filters.searchPlaceholder')}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  onChange={e => handleFilterChange('search', e.target.value)}
                 />
               </div>
 
               {/* Sort */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.sortBy')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.sortBy')}</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.ordering}
-                  onChange={(e) => handleFilterChange('ordering', e.target.value)}
+                  onChange={e => handleFilterChange('ordering', e.target.value)}
                 >
                   <option value="-rating">{t('games.sorting.rating')}</option>
                   <option value="-released">{t('games.sorting.newest')}</option>
@@ -270,15 +245,14 @@ function GamesPage() {
                   <option value="-added">{t('games.sorting.popular')}</option>
                 </select>
               </div>
-              {/* Genre Filter */}
+
+              {/* Genre */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.genre')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.genre')}</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.genre}
-                  onChange={(e) => handleFilterChange('genre', e.target.value)}
+                  onChange={e => handleFilterChange('genre', e.target.value)}
                 >
                   <option value="">{t('games.filters.allGenres')}</option>
                   {genres.map((genre, index) => (
@@ -289,15 +263,13 @@ function GamesPage() {
                 </select>
               </div>
 
-              {/* Platform Filter */}
+              {/* Platform */}
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('games.filters.platform')}
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('games.filters.platform')}</label>
                 <select
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={filters.platform}
-                  onChange={(e) => handleFilterChange('platform', e.target.value)}
+                  onChange={e => handleFilterChange('platform', e.target.value)}
                 >
                   <option value="">{t('games.filters.allPlatforms')}</option>
                   {platforms.map((platform, index) => (
@@ -313,10 +285,7 @@ function GamesPage() {
                 {filters.search && (
                   <div className="flex items-center justify-between bg-blue-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.search')}: {filters.search}</span>
-                    <button 
-                      onClick={() => handleFilterChange('search', '')}
-                      className="text-blue-600 hover:text-blue-800 ml-2"
-                    >
+                    <button onClick={() => handleFilterChange('search', '')} className="text-blue-600 hover:text-blue-800 ml-2">
                       ×
                     </button>
                   </div>
@@ -324,10 +293,7 @@ function GamesPage() {
                 {filters.genre && (
                   <div className="flex items-center justify-between bg-green-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.genre')}: {filters.genre}</span>
-                    <button 
-                      onClick={() => handleFilterChange('genre', '')}
-                      className="text-green-600 hover:text-green-800 ml-2"
-                    >
+                    <button onClick={() => handleFilterChange('genre', '')} className="text-green-600 hover:text-green-800 ml-2">
                       ×
                     </button>
                   </div>
@@ -335,10 +301,7 @@ function GamesPage() {
                 {filters.platform && (
                   <div className="flex items-center justify-between bg-purple-100 px-3 py-1 rounded-full text-sm">
                     <span>{t('games.filters.platform')}: {filters.platform}</span>
-                    <button 
-                      onClick={() => handleFilterChange('platform', '')}
-                      className="text-purple-600 hover:text-purple-800 ml-2"
-                    >
+                    <button onClick={() => handleFilterChange('platform', '')} className="text-purple-600 hover:text-purple-800 ml-2">
                       ×
                     </button>
                   </div>
@@ -361,7 +324,7 @@ function GamesPage() {
             </div>
           </div>
 
-          {/* Main Content - Games Grid */}
+          {/* Main Content */}
           <div className="lg:w-3/4">
             {loading ? (
               <div className="flex items-center justify-center py-20">
@@ -376,11 +339,7 @@ function GamesPage() {
                   <h2 className="text-xl font-semibold text-gray-800">
                     {games.length} de {totalGames.toLocaleString()} {t('games.results.found')}
                   </h2>
-                  {hasMore && (
-                    <div className="text-sm text-gray-500">
-                      {t('games.results.scrollLoad')}
-                    </div>
-                  )}
+                  {hasMore && <div className="text-sm text-gray-500">{t('games.results.scrollLoad')}</div>}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -389,7 +348,6 @@ function GamesPage() {
                   ))}
                 </div>
 
-                {/* Loading More Indicator */}
                 {loadingMore && (
                   <div className="flex items-center justify-center py-8">
                     <div className="text-center">
@@ -399,12 +357,9 @@ function GamesPage() {
                   </div>
                 )}
 
-                {/* End of Results */}
                 {!hasMore && games.length > 0 && (
                   <div className="text-center py-8">
-                    <div className="text-gray-500">
-                      🎮 {t('games.results.allGamesViewed', { count: games.length })}
-                    </div>
+                    <div className="text-gray-500">🎮 {t('games.results.allGamesViewed', { count: games.length })}</div>
                   </div>
                 )}
 
