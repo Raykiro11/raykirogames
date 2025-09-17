@@ -86,7 +86,9 @@ function GamesPage() {
         url += '?' + params.toString()
       }
 
-      console.log('Fetching games from URL:', url)
+      console.log('API_BASE:', API_BASE);
+console.log('Fetching URL:', url);
+
 
       const response = await fetch(url)
       const data = await response.json()
