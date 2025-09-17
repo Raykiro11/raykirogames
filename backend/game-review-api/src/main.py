@@ -15,18 +15,25 @@ from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
+# Detecta ambiente
+ENV = os.getenv('ENVIRONMENT', 'development')  # 'development' ou 'production'
+IS_PROD = ENV.lower() == 'production'
+
 # Configuração básica
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'dev-secret-key'
-app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
-# API RAWG Configuration - Usar a chave do .env
-RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '5ff00f2791e447d0aee2156bc93c4b7e'
-RAWG_BASE_URL = 'https://api.rawg.io/api'
+# CORS automático
+if IS_PROD:
+    # Permite apenas o domínio da produção
+    CORS(app, origins=['https://www.raykirogames.com'])
+else:
+    # Permite qualquer origem para desenvolvimento local
+    CORS(app, origins=['http://localhost:5173', 'http://127.0.0.1:5173'])
 
 # Inicializar extensões
-CORS(app, origins=['https://www.raykirogames.com'])
 jwt = JWTManager(app)
 limiter = Limiter(
     key_func=get_remote_address,
@@ -34,7 +41,11 @@ limiter = Limiter(
 )
 limiter.init_app(app)
 
-# Cache simples para evitar requisições desnecessárias
+# Configurações da API RAWG
+RAWG_API_KEY = os.getenv('RAWG_API_KEY') or 'SUA_CHAVE_RAWG'
+RAWG_BASE_URL = 'https://api.rawg.io/api'
+
+# Cache simples
 cache = {}
 CACHE_DURATION = 300  # 5 minutos
 
