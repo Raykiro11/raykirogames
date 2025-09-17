@@ -572,16 +572,13 @@ def login():
     })
 
 if __name__ == '__main__':
-    port = int(os.getenv("PORT", 5002))  # Railway injeta PORT, local usa 5002
-    debug = IS_DEV
-     IS_DEV = os.getenv("FLASK_ENV", "development") == "development"
+    import os
+    IS_DEV = os.getenv("FLASK_ENV", "development") == "development"
 
     print("🚀 Starting Game Review API...")
-    print(f"📡 RAWG API Key: {os.getenv('RAWG_API_KEY')[:10]}..." if os.getenv("RAWG_API_KEY") else "❌ No RAWG API Key found")
-    print(f"🌐 Running in {'development' if IS_DEV else 'production'} mode")
-    print(f"📡 Listening on port {port}")
-
-    app.run(host="0.0.0.0", port=port, debug=debug)
+    print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
+    print("🌐 Server will be available at: http://localhost:5002")
+    app.run(host='0.0.0.0', port=5002, debug=IS_DEV)
 
 
 
