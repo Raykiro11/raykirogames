@@ -7,7 +7,7 @@ export default ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   // Define o backend a partir do .env, ou fallback para localhost
-  const BACKEND_URL = env.VITE_BACKEND_URL || 'http://localhost:80'
+const BACKEND_URL = env.VITE_BACKEND_URL || 'http://localhost:5002';
 
   return defineConfig({
     plugins: [react()],

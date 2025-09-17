@@ -1,4 +1,5 @@
-const API_BASE_URL = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:80') + '/api';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL + '/api';
+
 
 // Função genérica para fazer requisições GET
 async function fetchData(endpoint ) {
