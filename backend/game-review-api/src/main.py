@@ -563,7 +563,7 @@ def login():
 if __name__ == '__main__':
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
-    print("🌐 Server will be available at: http://localhost:5002")
-    app.run(host='0.0.0.0', port=5002, debug=True)
+    print("🌐 Server will be available at: https://www.raykirogames.com/")
+    app.run(host='0.0.0.0', port=80, debug=True)
 
 
