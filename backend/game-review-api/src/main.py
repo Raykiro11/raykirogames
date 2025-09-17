@@ -42,7 +42,7 @@ limiter = Limiter(
 limiter.init_app(app)
 
 # Configurações da API RAWG
-RAWG_API_KEY = os.getenv('RAWG_API_KEY') or 'SUA_CHAVE_RAWG'
+RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '5ff00f2791e447d0aee2156bc93c4b7e'
 RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Cache simples
