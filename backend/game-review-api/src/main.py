@@ -564,10 +564,10 @@ def login():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # fallback local para 5000
+    port = int(os.environ.get('PORT', 5000))  # Railway usa PORT, fallback local 5000
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
-    print(f"🌐 Server will be available at port {port}")
+    print(f"🌐 Server will be available on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
 
 
