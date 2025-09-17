@@ -85,6 +85,9 @@ function GamesPage() {
         url += '?' + params.toString()
       }
 
+      // Debug rápido: verifique a URL que está sendo chamada
+      console.log('Fetching games from URL:', url)
+
       const response = await fetch(url)
       const data = await response.json()
 
@@ -96,7 +99,10 @@ function GamesPage() {
           const newGames = data.games.filter(newGame =>
             !games.some(existingGame => existingGame.id === newGame.id)
           )
-          setGames(prevGames => [...prevGames, ...newGames])
+          setGames(prevGames => [
+            ...prevGames,
+            ...data.games.filter(newGame => !prevGames.some(g => g.id === newGame.id))
+          ])
           setCurrentPage(prev => prev + 1)
         }
 
@@ -127,6 +133,7 @@ function GamesPage() {
 
     return () => clearTimeout(timeoutId)
   }, [filters])
+  
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
       ...prev,

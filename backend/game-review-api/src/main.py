@@ -17,19 +17,16 @@ from flask_limiter.util import get_remote_address
 
 # Configuração básica
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+app.config['SECRET_KEY'] = 'dev-secret-key'
+app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 # API RAWG Configuration - Usar a chave do .env
-RAWG_API_KEY = os.getenv('RAWG_API_KEY', '2f8b3853d2fd47cabd77e4d78a6cf96f')
+RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '2f8b3853d2fd47cabd77e4d78a6cf96f'
 RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Inicializar extensões
-# Pega a lista de origens do .env, separadas por vírgula
-cors_origins = os.getenv('CORS_ORIGINS', 'https://www.raykirogames.com').split(',')
-CORS(app, origins=cors_origins)
-
+CORS(app, origins=['https://www.raykirogames.com', 'http://localhost:5173'])
 jwt = JWTManager(app)
 limiter = Limiter(
     key_func=get_remote_address,
@@ -50,13 +47,11 @@ def is_cache_valid(cache_entry):
     """Verifica se o cache ainda é válido"""
     return datetime.now() - cache_entry['timestamp'] < timedelta(seconds=CACHE_DURATION)
 
-# Função para fazer requisições à API RAWG com cache
 def fetch_from_rawg(endpoint, params=None):
     if params is None:
         params = {}
     params['key'] = RAWG_API_KEY
     
-    # Verificar cache
     cache_key = get_cache_key(endpoint, params)
     if cache_key in cache and is_cache_valid(cache[cache_key]):
         print(f"Cache hit for {endpoint}")
@@ -67,7 +62,6 @@ def fetch_from_rawg(endpoint, params=None):
         response.raise_for_status()
         data = response.json()
         
-        # Armazenar no cache
         cache[cache_key] = {
             'data': data,
             'timestamp': datetime.now()
@@ -79,7 +73,6 @@ def fetch_from_rawg(endpoint, params=None):
         print(f"Error fetching from RAWG API: {e}")
         return None
 
-# Rota de saúde
 @app.route('/api/health')
 def health():
     return jsonify({
@@ -88,7 +81,6 @@ def health():
         'cache_size': len(cache)
     })
 
-# Rota para jogos populares
 @app.route('/api/games/popular')
 def get_popular_games():
     page = request.args.get('page', 1, type=int)
@@ -128,33 +120,30 @@ def get_popular_games():
         'message': 'Failed to fetch popular games'
     }), 500
 
-# Rota para jogos recentes (2024-2025)
 @app.route('/api/games/recent')
 def get_recent_games():
     page = request.args.get('page', 1, type=int)
     page_size = request.args.get('page_size', 12, type=int)
 
-    # Buscar jogos lançados entre 2024 e 2025
     current_year = datetime.now().year
-    start_date = f"{current_year - 1}-01-01"  # 2024-01-01
-    end_date = f"{current_year}-12-31"        # 2025-12-31
+    start_date = f"{current_year - 1}-01-01"
+    end_date = f"{current_year}-12-31"
 
     data = fetch_from_rawg('games', {
         'ordering': '-released',
         'page': page,
         'page_size': page_size,
-        'dates': f'{start_date},{end_date}'  # Filtro de data para jogos recentes
+        'dates': f'{start_date},{end_date}'
     })
 
     if data:
         games = []
         for game in data.get('results', []):
-            # Verificar se o jogo foi realmente lançado em 2024 ou 2025
             released_date = game.get('released')
             if released_date:
                 try:
                     release_year = datetime.strptime(released_date, '%Y-%m-%d').year
-                    if release_year >= 2024:  # Apenas jogos de 2024 em diante
+                    if release_year >= 2024:
                         games.append({
                             'id': game.get('id'),
                             'name': game.get('name'),
@@ -165,7 +154,6 @@ def get_recent_games():
                             'platforms': [platform['platform']['name'] for platform in game.get('platforms', [])]
                         })
                 except ValueError:
-                    # Se não conseguir parsear a data, incluir mesmo assim
                     games.append({
                         'id': game.get('id'),
                         'name': game.get('name'),
@@ -191,18 +179,15 @@ def get_recent_games():
         'message': 'Failed to fetch recent games'
     }), 500
 
-# Rota principal para jogos com filtros e paginação otimizada
 @app.route('/api/games')
 def get_games():
-    # Parâmetros de filtro
     search = request.args.get('search', '').strip()
     genres = request.args.get('genres', '').strip()
     platforms = request.args.get('platforms', '').strip()
     ordering = request.args.get('ordering', '-added')
     page = request.args.get('page', 1, type=int)
-    page_size = min(request.args.get('page_size', 20, type=int), 40)  # Limitar a 40 por página
+    page_size = min(request.args.get('page_size', 20, type=int), 40)
 
-    # Validar página
     if page < 1:
         page = 1
 
@@ -212,7 +197,6 @@ def get_games():
         'page_size': page_size
     }
 
-    # Adicionar filtros apenas se não estiverem vazios
     if search:
         params['search'] = search
     if genres:
@@ -224,8 +208,7 @@ def get_games():
 
     if data:
         games = []
-        seen_ids = set()  # Para evitar duplicatas
-        
+        seen_ids = set()
         for game in data.get('results', []):
             game_id = game.get('id')
             if game_id and game_id not in seen_ids:
@@ -242,12 +225,9 @@ def get_games():
                     'playtime': game.get('playtime', 0)
                 })
 
-        # Informações de paginação
         total_count = data.get('count', 0)
         has_next = data.get('next') is not None
         has_previous = data.get('previous') is not None
-        
-        # Calcular total de páginas
         total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
 
         return jsonify({
@@ -263,7 +243,6 @@ def get_games():
                 'next_page': page + 1 if has_next else None,
                 'previous_page': page - 1 if has_previous else None
             },
-            # Manter compatibilidade com versão anterior
             'page': page,
             'page_size': page_size,
             'total': total_count
@@ -274,7 +253,6 @@ def get_games():
         'message': 'Failed to fetch games'
     }), 500
 
-# Rota para jogos com base na pontuação do Metacritic (para a página de reviews de críticos)
 @app.route('/api/games/critic-reviews')
 def get_critic_reviews():
     data = fetch_from_rawg('games', {
@@ -306,7 +284,6 @@ def get_critic_reviews():
         'message': 'Failed to fetch critic reviews'
     }), 500
 
-# Rota para gêneros
 @app.route('/api/games/genres')
 def get_genres():
     data = fetch_from_rawg('genres', {'page_size': 50})
@@ -323,7 +300,6 @@ def get_genres():
         'message': 'Failed to fetch genres'
     }), 500
 
-# Rota para plataformas
 @app.route('/api/games/platforms')
 def get_platforms():
     data = fetch_from_rawg('platforms', {'page_size': 50})
@@ -340,7 +316,6 @@ def get_platforms():
         'message': 'Failed to fetch platforms'
     }), 500
 
-# Rota para detalhes de um jogo específico
 @app.route('/api/games/<int:game_id>')
 def get_game_details(game_id):
     game_data = fetch_from_rawg(f'games/{game_id}')
@@ -376,8 +351,7 @@ def get_game_details(game_id):
         'status': 'error',
         'message': 'Game not found'
     }), 404
-
-# Nova rota para detalhes de reviews de um jogo específico
+    
 @app.route('/api/games/<int:game_id>/reviews')
 def get_game_reviews(game_id):
     game_data = fetch_from_rawg(f'games/{game_id}')
@@ -447,7 +421,6 @@ def get_game_reviews(game_id):
         }
     })
 
-# Nova rota para adicionar review de usuário
 @app.route('/api/games/<int:game_id>/reviews', methods=['POST'])
 def add_user_review(game_id):
     data = request.get_json()
@@ -479,7 +452,6 @@ def add_user_review(game_id):
         'review': new_review
     })
 
-# Rota para notícias de jogos (atualizadas com datas mais recentes)
 @app.route('/api/news')
 def get_gaming_news():
     gaming_news = [
@@ -514,7 +486,6 @@ def get_gaming_news():
         'news': gaming_news
     })
 
-# Rota para notícias de consoles (atualizadas)
 @app.route('/api/news/consoles')
 def get_console_news():
     console_news = [
@@ -537,7 +508,6 @@ def get_console_news():
     ]
     return jsonify({'status': 'ok', 'articles': console_news})
 
-# Rota para limpar cache (útil para desenvolvimento)
 @app.route('/api/cache/clear')
 def clear_cache():
     global cache
@@ -548,7 +518,6 @@ def clear_cache():
         'message': f'Cache cleared. Removed {cache_size} entries.'
     })
 
-# Rotas de autenticação
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     return jsonify({
@@ -564,10 +533,8 @@ def login():
     })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Railway usa PORT, fallback local 5000
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
-    print(f"🌐 Server will be available on port {port}")
-    app.run(host='0.0.0.0', port=port, debug=False)
-
+    print("🌐 Server will be available at: https://www.raykirogames.com")
+    app.run(host='0.0.0.0', port=80, debug=False)
 
