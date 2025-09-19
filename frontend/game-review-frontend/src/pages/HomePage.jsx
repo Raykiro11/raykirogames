@@ -59,7 +59,7 @@ function HomePage() {
       }
       setSearchLoading(true)
       try {
-        const response = await fetch(`http://localhost:5002/api/games?search=${encodeURIComponent(searchQuery.trim())}&page_size=8`)
+        const response = await fetch(`${API_BASE_URL}/games?search=${encodeURIComponent(searchQuery.trim())}&page_size=8`)
         const data = await response.json()
         if (data.status === 'success') {
           setSearchResults(data.games)
