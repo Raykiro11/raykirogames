@@ -2,6 +2,9 @@ FROM python:3.9-slim-buster
 
 WORKDIR /app
 
+# Adicione um argumento para invalidar o cache
+ARG CACHE_BUSTER=1
+
 # Copia o requirements.txt e instala as dependências
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -18,5 +21,4 @@ ENV FLASK_RUN_PORT=5000
 EXPOSE 5000
 
 # Comando para iniciar a aplicação com Gunicorn
-# Usamos o executável gunicorn diretamente, que deve estar no PATH após a instalação
 CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
