@@ -1,16 +1,24 @@
-FROM python:3.9-slim-buster
+    ```dockerfile
+    FROM python:3.9-slim-buster
 
-WORKDIR /app
+    WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+    # Copia o requirements.txt e instala as dependências
+    COPY requirements.txt .
+    RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
+    # Copia o restante do código da aplicação
+    COPY main.py .
 
-ENV FLASK_APP=main.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=5000
+    # Variáveis de ambiente para o Flask/Gunicorn
+    ENV FLASK_APP=main.py
+    ENV FLASK_RUN_HOST=0.0.0.0
+    ENV FLASK_RUN_PORT=5000
 
-EXPOSE 5000
+    EXPOSE 5000
 
-CMD ["flask", "run"]
+    # Comando para iniciar a aplicação com Gunicorn
+    CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
+    ```
+
+*   **Verifique se a linha `RUN pip install --no-cache-dir -r requirements.txt` está presente e correta.**
