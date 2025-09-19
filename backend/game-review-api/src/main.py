@@ -414,7 +414,7 @@ def get_game_reviews(game_id):
             "source": "IGN",
             "score": max(6.0, min(10.0, metacritic_score / 10.0)),
             "maxScore": 10,
-            "review": f"{\"Um jogo que impressiona\" if metacritic_score >= 80 else \"Uma experiência mista\"} com elementos que {\"brilham intensamente\" if metacritic_score >= 80 else \"funcionam bem na maior parte do tempo\"}.",
+            "review": f"{'Um jogo que impressiona' if metacritic_score >= 80 else 'Uma experiência mista'} com elementos que {'brilham intensamente' if metacritic_score >= 80 else 'funcionam bem na maior parte do tempo'}.",
             "pros": ["Design de personagens", "Trilha sonora", "Mecânicas inovadoras"],
             "cons": ["Alguns problemas técnicos", "Pacing irregular"] if metacritic_score < 80 else ["Falta de conteúdo pós-jogo"],
             "date": "2024-06-14"
