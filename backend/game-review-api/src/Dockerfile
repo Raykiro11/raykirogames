@@ -16,5 +16,7 @@ ENV FLASK_RUN_PORT=5000
 
 EXPOSE 5000
 
-# Comando para iniciar a aplicação com Gunicorn
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
+# Garante que o ambiente virtual seja ativado e o gunicorn seja executado
+# O PATH do ambiente virtual é adicionado automaticamente ao PATH do shell
+# quando o ambiente virtual é ativado.
+CMD ["/usr/local/bin/python", "-m", "gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
