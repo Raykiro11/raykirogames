@@ -1,6 +1,7 @@
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 console.log('🔍 API_BASE_URL:', import.meta.env.VITE_API_BASE_URL );
 console.log('🔍 All env vars:', import.meta.env);
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 // Função genérica para fazer requisições GET
 async function fetchData(endpoint ) {
