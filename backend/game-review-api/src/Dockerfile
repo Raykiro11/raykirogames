@@ -13,4 +13,4 @@ ENV FLASK_RUN_PORT=5000
 
 EXPOSE 5000
 
-CMD ["flask", "run"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "main:app"]
