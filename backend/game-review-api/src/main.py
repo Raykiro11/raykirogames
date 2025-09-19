@@ -17,8 +17,8 @@ from flask_limiter.util import get_remote_address
 
 # Configuração básica
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
+app.config['SECRET_KEY'] = 'dev-secret-key'
+app.config['JWT_SECRET_KEY'] = 'jwt-secret-key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 # API RAWG Configuration - Usar a chave do .env
@@ -26,9 +26,7 @@ RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '2f8b3853d2fd47cabd77e4d78a6cf96f'
 RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Inicializar extensões
-cors_origins = os.getenv('CORS_ORIGINS', '').split(',')
-CORS(app, origins=cors_origins)
-
+CORS(app, origins=['https://www.raykirogames.com/'])
 jwt = JWTManager(app)
 limiter = Limiter(
     key_func=get_remote_address,
@@ -148,11 +146,12 @@ def get_recent_games():
     if data:
         games = []
         for game in data.get('results', []):
+            # Verificar se o jogo foi realmente lançado em 2024 ou 2025
             released_date = game.get('released')
             if released_date:
                 try:
                     release_year = datetime.strptime(released_date, '%Y-%m-%d').year
-                    if release_year >= 2024:
+                    if release_year >= 2024:  # Apenas jogos de 2024 em diante
                         games.append({
                             'id': game.get('id'),
                             'name': game.get('name'),
@@ -163,6 +162,7 @@ def get_recent_games():
                             'platforms': [platform['platform']['name'] for platform in game.get('platforms', [])]
                         })
                 except ValueError:
+                    # Se não conseguir parsear a data, incluir mesmo assim
                     games.append({
                         'id': game.get('id'),
                         'name': game.get('name'),
@@ -191,13 +191,15 @@ def get_recent_games():
 # Rota principal para jogos com filtros e paginação otimizada
 @app.route('/api/games')
 def get_games():
+    # Parâmetros de filtro
     search = request.args.get('search', '').strip()
     genres = request.args.get('genres', '').strip()
     platforms = request.args.get('platforms', '').strip()
     ordering = request.args.get('ordering', '-added')
     page = request.args.get('page', 1, type=int)
-    page_size = min(request.args.get('page_size', 20, type=int), 40)
+    page_size = min(request.args.get('page_size', 20, type=int), 40)  # Limitar a 40 por página
 
+    # Validar página
     if page < 1:
         page = 1
 
@@ -207,6 +209,7 @@ def get_games():
         'page_size': page_size
     }
 
+    # Adicionar filtros apenas se não estiverem vazios
     if search:
         params['search'] = search
     if genres:
@@ -218,7 +221,8 @@ def get_games():
 
     if data:
         games = []
-        seen_ids = set()
+        seen_ids = set()  # Para evitar duplicatas
+        
         for game in data.get('results', []):
             game_id = game.get('id')
             if game_id and game_id not in seen_ids:
@@ -235,9 +239,12 @@ def get_games():
                     'playtime': game.get('playtime', 0)
                 })
 
+        # Informações de paginação
         total_count = data.get('count', 0)
         has_next = data.get('next') is not None
         has_previous = data.get('previous') is not None
+        
+        # Calcular total de páginas
         total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
 
         return jsonify({
@@ -253,6 +260,7 @@ def get_games():
                 'next_page': page + 1 if has_next else None,
                 'previous_page': page - 1 if has_previous else None
             },
+            # Manter compatibilidade com versão anterior
             'page': page,
             'page_size': page_size,
             'total': total_count
@@ -555,7 +563,7 @@ def login():
 if __name__ == '__main__':
     print("🚀 Starting Game Review API...")
     print(f"📡 RAWG API Key: {RAWG_API_KEY[:10]}..." if RAWG_API_KEY else "❌ No RAWG API Key found")
-    print("🌐 Server will be available at: https://www.raykirogames.com")
-    
-    port = int(os.environ.get('PORT', 80))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    print("🌐 Server will be available at: http://localhost:5002")
+    app.run(host='0.0.0.0', port=5002, debug=True)
+
+

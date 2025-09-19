@@ -1,6 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL
-  ? import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '') + '/api'
-  : 'http://localhost:5002/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5002/api';
 
 // Função genérica para fazer requisições GET
 async function fetchData(endpoint ) {

@@ -35,7 +35,7 @@ function GamesPage() {
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        const response = await fetch('/api/games/genres')
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/genres`)
         const data = await response.json()
         if (data.status === 'success') {
           setGenres(data.genres)
@@ -47,7 +47,7 @@ function GamesPage() {
 
     const fetchPlatforms = async () => {
       try {
-        const response = await fetch('/api/games/platforms')
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/platforms`)
         const data = await response.json()
         if (data.status === 'success') {
           setPlatforms(data.platforms)
@@ -71,7 +71,7 @@ function GamesPage() {
     }
 
     try {
-      let url = '/api/games'
+      let url = `${import.meta.env.VITE_API_BASE_URL}/games`
       const params = new URLSearchParams()
 
       if (filters.search) params.append('search', filters.search)
@@ -85,9 +85,6 @@ function GamesPage() {
         url += '?' + params.toString()
       }
 
-      // Debug rápido: verifique a URL que está sendo chamada
-      console.log('Fetching games from URL:', url)
-
       const response = await fetch(url)
       const data = await response.json()
 
@@ -99,10 +96,7 @@ function GamesPage() {
           const newGames = data.games.filter(newGame =>
             !games.some(existingGame => existingGame.id === newGame.id)
           )
-          setGames(prevGames => [
-            ...prevGames,
-            ...data.games.filter(newGame => !prevGames.some(g => g.id === newGame.id))
-          ])
+          setGames(prevGames => [...prevGames, ...newGames])
           setCurrentPage(prev => prev + 1)
         }
 
@@ -133,7 +127,6 @@ function GamesPage() {
 
     return () => clearTimeout(timeoutId)
   }, [filters])
-  
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
       ...prev,
