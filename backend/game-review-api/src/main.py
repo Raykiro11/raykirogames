@@ -26,7 +26,7 @@ RAWG_API_KEY = os.getenv('RAWG_API_KEY') or '2f8b3853d2fd47cabd77e4d78a6cf96f'
 RAWG_BASE_URL = 'https://api.rawg.io/api'
 
 # Inicializar extensões
-CORS(app, origins=['https://www.raykirogames.com/'])
+CORS(app, origins=['https://www.raykirogames.com'])
 jwt = JWTManager(app)
 limiter = Limiter(
     key_func=get_remote_address,
