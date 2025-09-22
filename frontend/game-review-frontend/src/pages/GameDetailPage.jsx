@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
+// Configure API base URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 function GameDetailPage() {
   const { t } = useTranslation('common')
   const { id } = useParams()
@@ -13,7 +16,7 @@ function GameDetailPage() {
     const fetchGameDetails = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`https://localhost:5000/api/games/${id}` )
+        const response = await fetch(`${API_BASE_URL}/games/${id}`)
         const data = await response.json()
         
         if (data.status === 'success') {
