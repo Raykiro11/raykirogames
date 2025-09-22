@@ -105,8 +105,13 @@ function HomePage() {
     }
   }
 
+  // Fixed formatTimeAgo function with proper date validation
   const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Data não disponível'
+    
     const date = new Date(dateString)
+    if (isNaN(date.getTime())) return 'Data inválida'
+    
     const now = new Date()
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
     const locale = i18n.language === 'pt' ? pt : i18n.language === 'es' ? es : enUS
@@ -114,6 +119,22 @@ function HomePage() {
     if (diffInHours < 24) return `${diffInHours}h ${t('homepage.news.ago')}`
     if (diffInHours < 48) return t('homepage.news.yesterday')
     return format(date, 'dd MMM', { locale })
+  }
+
+  // Helper function to safely get year from date
+  const getGameYear = (dateString) => {
+    if (!dateString || dateString === 'TBD') return 'TBA'
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return 'TBA'
+    return date.getFullYear()
+  }
+
+  // Helper function to check if game is new (2024+)
+  const isNewGame = (dateString) => {
+    if (!dateString || dateString === 'TBD') return false
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) return false
+    return date.getFullYear() >= 2024
   }
 
   const scrollLeft = (ref) => { if(ref.current) ref.current.scrollBy({ left: -300, behavior: 'smooth' }) }
@@ -178,7 +199,9 @@ function HomePage() {
                           />
                           <div className="flex-1 min-w-0">
                             <div className="text-gray-900 font-medium truncate">{game.name}</div>
-                            <div className="text-gray-500 text-sm truncate">{game.genres.slice(0,2).join(', ')} • {game.released ? new Date(game.released).getFullYear() : 'TBA'}</div>
+                            <div className="text-gray-500 text-sm truncate">
+                              {game.genres.slice(0,2).join(', ')} • {getGameYear(game.released)}
+                            </div>
                           </div>
                           <div className="flex items-center text-yellow-500">
                             <span className="text-sm">★ {game.rating || 'N/A'}</span>
@@ -230,185 +253,191 @@ function HomePage() {
           </div>
         </div>
       </section>
-{/* Popular Games Section */}
-<section className="py-16 bg-white">
-  <div className="container mx-auto px-4">
-    <div className="flex justify-between items-center mb-8">
-      <h2 className="text-3xl font-bold text-gray-800">{t('homepage.sections.popular')}</h2>
-      <Link to="/games" className="text-blue-600 hover:text-blue-800 font-medium">
-        {t('homepage.popularGames.viewAll')} →
-      </Link>
-    </div>
-    {loadingGames ? (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <span className="ml-4 text-gray-600">{t('homepage.popularGames.loading')}</span>
-      </div>
-    ) : (
-      <div className="relative">
-        <button
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
-          onClick={() => scrollLeft(popularGamesRef)}
-        >
-          ◀
-        </button>
-        <div ref={popularGamesRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
-          {popularGames.map(game => (
-            <Link key={game.id} to={`/games/${game.id}`} className="group flex-shrink-0 w-60">
-              <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
-                <div className="h-48 bg-gray-200 overflow-hidden">
-                  <img 
-                    src={game.background_image} 
-                    alt={game.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
-                  <div className="flex items-center mb-2">
-                    <span className="text-yellow-500 text-sm">{'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}</span>
-                    <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
-                  </div>
-                  <p className="text-gray-600 text-sm truncate">{game.genres.join(', ')}</p>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-        <button
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
-          onClick={() => scrollRight(popularGamesRef)}
-        >
-          ▶
-        </button>
-      </div>
-    )}
-  </div>
-</section>
 
-{/* Recent Releases Section */}
-<section className="py-16 bg-gray-50">
-  <div className="container mx-auto px-4">
-    <div className="flex justify-between items-center mb-8">
-      <h2 className="text-3xl font-bold text-gray-800">{t('homepage.recentReleases.title')}</h2>
-      <Link to="/games?ordering=-released" className="text-blue-600 hover:text-blue-800 font-medium">
-        {t('homepage.recentReleases.viewAll')} →
-      </Link>
-    </div>
-    {loadingGames ? (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <span className="ml-4 text-gray-600">{t('homepage.recentReleases.loading')}</span>
-      </div>
-    ) : (
-      <div className="relative">
-        <button
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
-          onClick={() => scrollLeft(recentGamesRef)}
-        >
-          ◀
-        </button>
-        <div ref={recentGamesRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
-          {recentGames.map(game => (
-            <Link key={game.id} to={`/games/${game.id}`} className="group flex-shrink-0 w-60">
-              <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
-                <div className="h-48 bg-gray-200 overflow-hidden relative">
-                  <img 
-                    src={game.background_image} 
-                    alt={game.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
-                  />
-                  {game.released && new Date(game.released).getFullYear() >= 2024 && (
-                    <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">NOVO</div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center">
-                      <span className="text-yellow-500 text-sm">{'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}</span>
-                      <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
+      {/* Popular Games Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">{t('homepage.sections.popular')}</h2>
+            <Link to="/games" className="text-blue-600 hover:text-blue-800 font-medium">
+              {t('homepage.popularGames.viewAll')} →
+            </Link>
+          </div>
+          {loadingGames ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <span className="ml-4 text-gray-600">{t('homepage.popularGames.loading')}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollLeft(popularGamesRef)}
+              >
+                ◀
+              </button>
+              <div ref={popularGamesRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
+                {popularGames.map(game => (
+                  <Link key={game.id} to={`/games/${game.id}`} className="group flex-shrink-0 w-60">
+                    <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
+                      <div className="h-48 bg-gray-200 overflow-hidden">
+                        <img 
+                          src={game.background_image} 
+                          alt={game.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
+                        />
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
+                        <div className="flex items-center mb-2">
+                          <span className="text-yellow-500 text-sm">{'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}</span>
+                          <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
+                        </div>
+                        <p className="text-gray-600 text-sm truncate">{game.genres.join(', ')}</p>
+                      </div>
                     </div>
-                    {game.released && <span className="text-gray-500 text-xs">{new Date(game.released).getFullYear()}</span>}
-                  </div>
-                  <p className="text-gray-600 text-sm truncate">{game.genres.join(', ')}</p>
-                </div>
+                  </Link>
+                ))}
               </div>
-            </Link>
-          ))}
+              <button
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollRight(popularGamesRef)}
+              >
+                ▶
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
-          onClick={() => scrollRight(recentGamesRef)}
-        >
-          ▶
-        </button>
-      </div>
-    )}
-  </div>
-</section>
+      </section>
 
-{/* Gaming News Section */}
-<section className="py-16 bg-white">
-  <div className="container mx-auto px-4">
-    <div className="flex justify-between items-center mb-8">
-      <h2 className="text-3xl font-bold text-gray-800">{t('homepage.news.title')}</h2>
-    </div>
-    {loadingNews ? (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        <span className="ml-4 text-gray-600">{t('homepage.news.loading')}</span>
-      </div>
-    ) : (
-      <div className="relative">
-        <button
-          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
-          onClick={() => scrollLeft(newsRef)}
-        >
-          ◀
-        </button>
-        <div ref={newsRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
-          {[...gamingNews, ...consoleNews].slice(0, 20).map((article, index) => (
-            <article key={index} className="flex-shrink-0 w-80 bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-              <div className="h-48 bg-gray-200 overflow-hidden">
-                <img 
-                  src={article.urlToImage} 
-                  alt={article.title}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
-                />
+      {/* Recent Releases Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">{t('homepage.recentReleases.title')}</h2>
+            <Link to="/games?ordering=-released" className="text-blue-600 hover:text-blue-800 font-medium">
+              {t('homepage.recentReleases.viewAll')} →
+            </Link>
+          </div>
+          {loadingGames ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <span className="ml-4 text-gray-600">{t('homepage.recentReleases.loading')}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollLeft(recentGamesRef)}
+              >
+                ◀
+              </button>
+              <div ref={recentGamesRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
+                {recentGames.map(game => (
+                  <Link key={game.id} to={`/games/${game.id}`} className="group flex-shrink-0 w-60">
+                    <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
+                      <div className="h-48 bg-gray-200 overflow-hidden relative">
+                        <img 
+                          src={game.background_image} 
+                          alt={game.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
+                        />
+                        {isNewGame(game.released) && (
+                          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">NOVO</div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <span className="text-yellow-500 text-sm">{'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}</span>
+                            <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
+                          </div>
+                          <span className="text-gray-500 text-xs">{getGameYear(game.released)}</span>
+                        </div>
+                        <p className="text-gray-600 text-sm truncate">{game.genres.join(', ')}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
               </div>
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-blue-600 text-sm font-medium">{article.source.name}</span>
-                  <span className="text-gray-500 text-sm">{formatTimeAgo(article.publishedAt)}</span>
-                </div>
-                <h3 className="font-bold text-lg mb-3 text-gray-800 line-clamp-2">{article.title}</h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">{article.description}</p>
-                <button
-                  onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(article.title)}`, '_blank')}
-                  className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors duration-200"
-                >
-                  {t('homepage.news.readMore')} →
-                </button>
-              </div>
-            </article>
-          ))}
+              <button
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollRight(recentGamesRef)}
+              >
+                ▶
+              </button>
+            </div>
+          )}
         </div>
-        <button
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
-          onClick={() => scrollRight(newsRef)}
-        >
-          ▶
-        </button>
-      </div>
-    )}
-  </div>
-</section>
-</div>
-)
+      </section>
+
+      {/* Gaming News Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">{t('homepage.news.title')}</h2>
+            <Link to="/news" className="text-blue-600 hover:text-blue-800 font-medium">
+              {t('homepage.news.viewAll')} →
+            </Link>
+          </div>
+          {loadingNews ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <span className="ml-4 text-gray-600">{t('homepage.news.loading')}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollLeft(newsRef)}
+              >
+                ◀
+              </button>
+              <div ref={newsRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
+                {consoleNews.slice(0, 10).map((article, index) => (
+                  <div key={index} className="flex-shrink-0 w-80">
+                    <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
+                      <div className="h-48 bg-gray-200 overflow-hidden">
+                        <img 
+                          src={article.urlToImage || 'data:image/svg+xml;base64,...'} 
+                          alt={article.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
+                        />
+                      </div>
+                      <div className="p-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-blue-600 text-sm font-medium">{article.source.name}</span>
+                          <span className="text-gray-500 text-sm">{formatTimeAgo(article.publishedAt)}</span>
+                        </div>
+                        <h3 className="font-bold text-lg mb-3 text-gray-800 line-clamp-2">{article.title}</h3>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">{article.description}</p>
+                        <button
+                          onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(article.title)}`, '_blank')}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors duration-200"
+                        >
+                          {t('homepage.news.readMore')} →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollRight(newsRef)}
+              >
+                ▶
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  )
 }
 
 export default HomePage
