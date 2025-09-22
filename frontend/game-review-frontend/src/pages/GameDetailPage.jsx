@@ -13,7 +13,7 @@ function GameDetailPage() {
     const fetchGameDetails = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`http://localhost:5000/api/games/${id}` )
+        const response = await fetch(`https://localhost:5000/api/games/${id}` )
         const data = await response.json()
         
         if (data.status === 'success') {
