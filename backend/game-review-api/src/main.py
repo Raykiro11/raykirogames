@@ -362,7 +362,7 @@ def get_game_details(game_id):
             "metacritic": game_data.get("metacritic"),
             "released": game_data.get("released"),
             "genres": [genre["name"] for genre in game_data.get("genres", [])],
-            "platforms": [platform["platform"]["name"] for platform in game.get("platforms", [])],
+            "platforms": [platform["platform"]["name"] for platform in game_data.get("platforms", [])],
             "developers": [dev["name"] for dev in game_data.get("developers", [])],
             "publishers": [pub["name"] for pub in game_data.get("publishers", [])],
             "esrb_rating": game_data.get("esrb_rating", {}).get("name", "Not Rated") if game_data.get("esrb_rating") else "Not Rated",
