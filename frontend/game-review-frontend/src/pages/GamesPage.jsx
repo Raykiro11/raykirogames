@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 
 function GamesPage() {
   const { t } = useTranslation('common')
   const [games, setGames] = useState([])
+  const [recentPopularGames, setRecentPopularGames] = useState([])
   const [genres, setGenres] = useState([])
   const [platforms, setPlatforms] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadingRecent, setLoadingRecent] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
@@ -30,6 +32,26 @@ function GamesPage() {
     })
     if (node) observer.current.observe(node)
   }, [loading, loadingMore, hasMore])
+
+  // Buscar jogos recentes populares
+  useEffect(() => {
+    const fetchRecentPopularGames = async () => {
+      try {
+        setLoadingRecent(true)
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/recent-popular?page_size=12`)
+        const data = await response.json()
+        if (data.status === 'success') {
+          setRecentPopularGames(data.games)
+        }
+      } catch (error) {
+        console.error('Error fetching recent popular games:', error)
+      } finally {
+        setLoadingRecent(false)
+      }
+    }
+
+    fetchRecentPopularGames()
+  }, [])
 
   // Buscar gêneros da API RAWG
   useEffect(() => {
@@ -59,30 +81,29 @@ function GamesPage() {
 
     fetchGenres()
     fetchPlatforms()
-  }, [t])
+  }, [])
 
-  // Função para buscar jogos (primeira página ou reset)
   const fetchGames = async (resetGames = true) => {
-    if (resetGames) {
-      setLoading(true)
-      setCurrentPage(1)
-    } else {
-      setLoadingMore(true)
-    }
-
     try {
-      let url = `${import.meta.env.VITE_API_BASE_URL}/games`
-      const params = new URLSearchParams()
+      if (resetGames) {
+        setLoading(true)
+        setCurrentPage(1)
+      } else {
+        setLoadingMore(true)
+      }
 
+      const params = new URLSearchParams()
+      let url = `${import.meta.env.VITE_API_BASE_URL}/games`
+      
+      params.append('page', resetGames ? '1' : currentPage.toString())
       if (filters.search) params.append('search', filters.search)
       if (filters.genre) params.append('genres', filters.genre)
       if (filters.platform) params.append('platforms', filters.platform)
       params.append('ordering', filters.ordering)
       params.append('page_size', '20')
-      params.append('page', resetGames ? '1' : currentPage.toString())
 
       if (params.toString()) {
-        url += '?' + params.toString()
+        url += `?${params.toString()}`
       }
 
       const response = await fetch(url)
@@ -93,16 +114,11 @@ function GamesPage() {
           setGames(data.games)
           setCurrentPage(2)
         } else {
-          const newGames = data.games.filter(newGame =>
-            !games.some(existingGame => existingGame.id === newGame.id)
-          )
-          setGames(prevGames => [...prevGames, ...newGames])
+          setGames(prev => [...prev, ...data.games])
           setCurrentPage(prev => prev + 1)
         }
-
         setTotalGames(data.total)
-        const totalLoaded = resetGames ? data.games.length : games.length + data.games.length
-        setHasMore(totalLoaded < data.total)
+        setHasMore(data.next)
       }
     } catch (error) {
       console.error(t('games.errors.fetchGames'), error)
@@ -112,27 +128,24 @@ function GamesPage() {
     }
   }
 
-  // Função para carregar mais jogos (scroll infinito)
-  const loadMoreGames = useCallback(() => {
+  const loadMoreGames = () => {
     if (!loadingMore && hasMore) {
       fetchGames(false)
     }
-  }, [loadingMore, hasMore, currentPage, filters, games])
+  }
 
-  // Buscar jogos quando filtros mudarem
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchGames(true)
-    }, 500) // Debounce de 500ms
-
+    }, 300)
     return () => clearTimeout(timeoutId)
   }, [filters])
-  const handleFilterChange = (key, value) => {
+
+  const handleFilterChange = (filterName, value) => {
     setFilters(prev => ({
       ...prev,
-      [key]: value
+      [filterName]: value
     }))
-    setHasMore(true)
   }
 
   const clearFilters = () => {
@@ -142,96 +155,94 @@ function GamesPage() {
       search: '',
       ordering: '-added'
     })
-    setHasMore(true)
   }
 
-  const renderStars = (rating) => {
-    const stars = Math.round(rating)
-    return '★'.repeat(stars) + '☆'.repeat(5 - stars)
-  }
-
-  const GameCard = ({ game, index }) => {
-    const isLast = index === games.length - 1
-
-    return (
-      <Link
-        to={`/games/${game.id}`}
-        className="block"
-        ref={isLast ? lastGameElementRef : null}
-      >
-        <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300 cursor-pointer">
-          <div className="h-48 bg-gray-200 overflow-hidden">
-            {game.background_image ? (
-              <img
-                src={game.background_image}
-                alt={game.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='
-                }}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-500">
-                🎮 {t('games.noImage')}
-              </div>
-            )}
-          </div>
-          <div className="p-4">
-            <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>
-              {game.name}
-            </h3>
-            <div className="flex items-center mb-2">
-              <span className="text-yellow-500 text-sm">
-                {renderStars(game.rating)}
-              </span>
-              <span className="ml-2 text-gray-600 text-sm">
-                {game.rating}/5
-              </span>
-            </div>
-            <p className="text-gray-600 text-sm truncate">
-              {game.genres.join(', ') || t('games.genres.various')}
-            </p>
-            <p className="text-gray-500 text-xs mt-1 truncate">
-              {game.platforms.slice(0, 3).join(', ')}
-              {game.platforms.length > 3 && '...'}
-            </p>
-            {game.released && (
-              <p className="text-gray-500 text-xs mt-1">
-                {t('games.common.released')}: {new Date(game.released).getFullYear()}
-              </p>
-            )}
-          </div>
-        </div>
-      </Link>
-    )
-  }
+  const hasActiveFilters = filters.genre || filters.platform || filters.search
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">{t('games.title')}</h1>
-          <p className="text-gray-600">{t('games.subtitle')}</p>
+      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+        <div className="container mx-auto px-4 py-12">
+          <h1 className="text-4xl font-bold mb-4">{t('games.title')}</h1>
+          <p className="text-xl opacity-90">{t('games.subtitle')}</p>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar - Filters */}
-          <div className="lg:w-1/4">
+        {/* Recent Popular Releases Section */}
+        <section className="mb-12">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">Recent Popular Releases</h2>
+            <p className="text-gray-600">High-quality recent games</p>
+          </div>
+          
+          {loadingRecent ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+              <span className="ml-4 text-gray-600">Loading recent games...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+              {recentPopularGames.map((game) => (
+                <Link
+                  key={game.id}
+                  to={`/games/${game.id}`}
+                  className="group bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
+                >
+                  <div className="aspect-video bg-gray-200 overflow-hidden">
+                    <img
+                      src={game.background_image}
+                      alt={game.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNDQgNzJIMTc2VjEwNEgxNDRWNzJaIiBmaWxsPSIjOUI5QkEwIi8+CjxwYXRoIGQ9Ik0xNTIgODBIMTY4Vjk2SDE1MlY4MFoiIGZpbGw9IiNGM0Y0RjYiLz4KPC9zdmc+Cg=='
+                      }}
+                    />
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-semibold text-sm mb-1 truncate" title={game.name}>
+                      {game.name}
+                    </h3>
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center">
+                        <span className="text-yellow-500">★</span>
+                        <span className="ml-1 text-gray-600">{game.rating}</span>
+                      </div>
+                      {game.metacritic && (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          game.metacritic >= 85 ? 'bg-green-100 text-green-800' :
+                          game.metacritic >= 75 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {game.metacritic}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Filters Sidebar */}
+          <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-800">{t('games.filters.title')}</h3>
-                <button 
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {t('games.filters.clearAll')}
-                </button>
+                <h2 className="text-lg font-semibold text-gray-800">{t('games.filters.title')}</h2>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    {t('games.filters.clear')}
+                  </button>
+                )}
               </div>
 
-              {/* Search */}
+              {/* Search Filter */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('games.filters.search')}
@@ -245,7 +256,7 @@ function GamesPage() {
                 />
               </div>
 
-              {/* Sort */}
+              {/* Sort Filter */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('games.filters.sortBy')}
@@ -263,6 +274,7 @@ function GamesPage() {
                   <option value="-added">{t('games.sorting.popular')}</option>
                 </select>
               </div>
+
               {/* Genre Filter */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -300,115 +312,129 @@ function GamesPage() {
                   ))}
                 </select>
               </div>
-
-              {/* Active Filters */}
-              <div className="space-y-2">
-                {filters.search && (
-                  <div className="flex items-center justify-between bg-blue-100 px-3 py-1 rounded-full text-sm">
-                    <span>{t('games.filters.search')}: {filters.search}</span>
-                    <button 
-                      onClick={() => handleFilterChange('search', '')}
-                      className="text-blue-600 hover:text-blue-800 ml-2"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-                {filters.genre && (
-                  <div className="flex items-center justify-between bg-green-100 px-3 py-1 rounded-full text-sm">
-                    <span>{t('games.filters.genre')}: {filters.genre}</span>
-                    <button 
-                      onClick={() => handleFilterChange('genre', '')}
-                      className="text-green-600 hover:text-green-800 ml-2"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-                {filters.platform && (
-                  <div className="flex items-center justify-between bg-purple-100 px-3 py-1 rounded-full text-sm">
-                    <span>{t('games.filters.platform')}: {filters.platform}</span>
-                    <button 
-                      onClick={() => handleFilterChange('platform', '')}
-                      className="text-purple-600 hover:text-purple-800 ml-2"
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Stats */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="text-sm text-gray-600">
-                  <div className="flex justify-between mb-1">
-                    <span>{t('games.stats.loadedGames')}</span>
-                    <span className="font-semibold">{games.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{t('games.stats.totalAvailable')}</span>
-                    <span className="font-semibold">{totalGames.toLocaleString()}</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Main Content - Games Grid */}
-          <div className="lg:w-3/4">
-            {loading ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto"></div>
-                  <p className="mt-4 text-gray-600">{t('games.results.loading')}</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-semibold text-gray-800">
-                    {games.length} de {totalGames.toLocaleString()} {t('games.results.found')}
-                  </h2>
-                  {hasMore && (
-                    <div className="text-sm text-gray-500">
-                      {t('games.results.scrollLoad')}
-                    </div>
+          {/* Games Grid */}
+          <div className="lg:col-span-3">
+            {/* Active Filters */}
+            {hasActiveFilters && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-blue-800">{t('games.filters.activeFilters')}:</span>
+                  {filters.genre && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span>{t('games.filters.genre')}: {filters.genre}</span>
+                      <button
+                        onClick={() => handleFilterChange('genre', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {filters.platform && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span>{t('games.filters.platform')}: {filters.platform}</span>
+                      <button
+                        onClick={() => handleFilterChange('platform', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {filters.search && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      <span>{t('games.filters.search')}: {filters.search}</span>
+                      <button
+                        onClick={() => handleFilterChange('search', '')}
+                        className="ml-1 text-blue-600 hover:text-blue-800"
+                      >
+                        ×
+                      </button>
+                    </span>
                   )}
                 </div>
+              </div>
+            )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {games.map((game, index) => (
-                    <GameCard key={`${game.id}-${index}`} game={game} index={index} />
-                  ))}
-                </div>
+            {/* Results Info */}
+            <div className="mb-6 flex justify-between items-center">
+              <p className="text-gray-600">
+                {loading ? t('games.common.loading') : `${totalGames} ${t('games.common.gamesFound')}`}
+              </p>
+            </div>
 
-                {/* Loading More Indicator */}
-                {loadingMore && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-                      <p className="mt-2 text-gray-600">{t('games.results.loadingMore')}</p>
+            {/* Games Grid */}
+            {loading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                <span className="ml-4 text-gray-600">{t('games.common.loading')}</span>
+              </div>
+            ) : games.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🎮</div>
+                <h3 className="text-xl font-semibold text-gray-800 mb-2">{t('games.common.noGamesFound')}</h3>
+                <p className="text-gray-600 mb-4">{t('games.common.tryDifferentFilters')}</p>
+                <button
+                  onClick={clearFilters}
+                  className="btn-primary"
+                >
+                  {t('games.filters.clear')}
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {games.map((game, index) => (
+                  <Link
+                    key={game.id}
+                    to={`/games/${game.id}`}
+                    ref={index === games.length - 1 ? lastGameElementRef : null}
+                    className="group bg-white rounded-lg shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden"
+                  >
+                    <div className="aspect-video bg-gray-200 overflow-hidden">
+                      <img
+                        src={game.background_image}
+                        alt={game.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNDQgNzJIMTc2VjEwNEgxNDRWNzJaIiBmaWxsPSIjOUI5QkEwIi8+CjxwYXRoIGQ9Ik0xNTIgODBIMTY4Vjk2SDE1MlY4MFoiIGZpbGw9IiNGM0Y0RjYiLz4KPC9zdmc+Cg=='
+                        }}
+                      />
                     </div>
-                  </div>
-                )}
-
-                {/* End of Results */}
-                {!hasMore && games.length > 0 && (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500">
-                      🎮 {t('games.results.allGamesViewed', { count: games.length })}
+                    <div className="p-4">
+                      <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>
+                        {game.name}
+                      </h3>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center">
+                          <span className="text-yellow-500 text-sm">
+                            {'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}
+                          </span>
+                          <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
+                        </div>
+                        {game.released && (
+                          <span className="text-gray-500 text-sm">
+                            {t('games.common.released')}: {new Date(game.released).getFullYear()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-gray-600 text-sm truncate">
+                        {game.genres.join(', ')}
+                      </p>
                     </div>
-                  </div>
-                )}
+                  </Link>
+                ))}
+              </div>
+            )}
 
-                {games.length === 0 && !loading && (
-                  <div className="text-center py-20">
-                    <div className="text-6xl mb-4">🎮</div>
-                    <h3 className="text-xl font-semibold text-gray-800 mb-2">{t('games.results.noGames')}</h3>
-                    <p className="text-gray-600">{t('games.results.noGamesSubtitle')}</p>
-                  </div>
-                )}
-              </>
+            {/* Load More Button */}
+            {loadingMore && (
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                <span className="ml-4 text-gray-600">{t('games.common.loadingMore')}</span>
+              </div>
             )}
           </div>
         </div>

@@ -5,6 +5,9 @@ import { fetchPopularGames, fetchRecentGames, fetchNews, fetchConsoleNews } from
 import { format } from 'date-fns'
 import { pt, enUS, es } from 'date-fns/locale'
 
+// Configure API base URL for search functionality
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
 function HomePage() {
   const { t, i18n } = useTranslation('common')
   const navigate = useNavigate()
@@ -439,5 +442,7 @@ function HomePage() {
     </div>
   )
 }
+
+export default HomePage
 
 export default HomePage
