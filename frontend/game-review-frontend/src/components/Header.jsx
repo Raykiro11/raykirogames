@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
-function Header({ showSearch = true }) {
+function Header() {
   const { t, i18n } = useTranslation('common')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -54,6 +54,25 @@ function Header({ showSearch = true }) {
             </Link>
           </nav>
 
+          {/* Search Bar */}
+          <div className="hidden md:flex items-center">
+            <form onSubmit={handleSearch} className="relative">
+              <input
+                type="text"
+                placeholder={t('navigation.search')}
+                className="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <button
+                type="submit"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                🔍
+              </button>
+            </form>
+          </div>
+
           {/* Right side - Language & Auth */}
           <div className="flex items-center space-x-4">
             {/* Language Selector */}
@@ -96,48 +115,24 @@ function Header({ showSearch = true }) {
           </div>
         </div>
 
-        {/* Search Bar (Desktop + Mobile) */}
-        {showSearch && (
-          <>
-            {/* Desktop Search */}
-            <div className="hidden md:flex items-center mt-4">
-              <form onSubmit={handleSearch} className="relative">
-                <input
-                  type="text"
-                  placeholder={t('navigation.search')}
-                  className="w-64 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  🔍
-                </button>
-              </form>
-            </div>
-
-            {/* Mobile Search */}
-            <div className="md:hidden pb-4 mt-2">
-              <form onSubmit={handleSearch} className="relative">
-                <input
-                  type="text"
-                  placeholder={t('navigation.search')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  🔍
-                </button>
-              </form>
-            </div>
-          </>
-        )}
+        {/* Mobile Search */}
+        <div className="md:hidden pb-4">
+          <form onSubmit={handleSearch} className="relative">
+            <input
+              type="text"
+              placeholder={t('navigation.search')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              🔍
+            </button>
+          </form>
+        </div>
       </div>
     </header>
   )
