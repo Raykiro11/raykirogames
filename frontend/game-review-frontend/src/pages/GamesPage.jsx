@@ -14,7 +14,7 @@ function GamesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [ordering, setOrdering] = useState("-added")
 
-  // NEW: dynamic filters
+  // NEW: filters from backend
   const [genres, setGenres] = useState([])
   const [platforms, setPlatforms] = useState([])
 
@@ -24,7 +24,7 @@ function GamesPage() {
   const observerRef = useRef(null)
 
   // =========================
-  // LOAD FILTER OPTIONS (NEW)
+  // LOAD FILTER OPTIONS
   // =========================
   useEffect(() => {
     const loadFilters = async () => {
@@ -37,13 +37,9 @@ function GamesPage() {
         const gData = await gRes.json()
         const pData = await pRes.json()
 
-        if (gData.status === "success") {
-          setGenres(gData.genres)
-        }
+        if (gData.status === "success") setGenres(gData.genres)
+        if (pData.status === "success") setPlatforms(pData.platforms)
 
-        if (pData.status === "success") {
-          setPlatforms(pData.platforms)
-        }
       } catch (err) {
         console.error("Error loading filters:", err)
       }
@@ -68,15 +64,27 @@ function GamesPage() {
   // =========================
   const fetchGames = async (pageNumber, reset = false) => {
     if (loading) return
+
     setLoading(true)
 
     try {
       let url = `${API_BASE_URL}/games?page=${pageNumber}&page_size=20`
 
-      if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`
-      if (ordering) url += `&ordering=${ordering}`
-      if (selectedGenre) url += `&genres=${encodeURIComponent(selectedGenre)}`
-      if (selectedPlatform) url += `&platforms=${encodeURIComponent(selectedPlatform)}`
+      if (debouncedSearch) {
+        url += `&search=${encodeURIComponent(debouncedSearch)}`
+      }
+
+      if (ordering) {
+        url += `&ordering=${ordering}`
+      }
+
+      if (selectedGenre) {
+        url += `&genres=${encodeURIComponent(selectedGenre)}`
+      }
+
+      if (selectedPlatform) {
+        url += `&platforms=${encodeURIComponent(selectedPlatform)}`
+      }
 
       const res = await fetch(url)
       const data = await res.json()
@@ -110,7 +118,6 @@ function GamesPage() {
     setGames([])
     setPage(1)
     setHasMore(true)
-
     window.scrollTo({ top: 0, behavior: "smooth" })
 
     fetchGames(1, true)
@@ -175,7 +182,7 @@ function GamesPage() {
           <option value="-rating">Top Rated</option>
         </select>
 
-        {/* GENRES (DYNAMIC) */}
+        {/* GENRES (FIXED: slug as value) */}
         <select
           value={selectedGenre}
           onChange={(e) => setSelectedGenre(e.target.value)}
@@ -183,13 +190,13 @@ function GamesPage() {
         >
           <option value="">All Genres</option>
           {genres.map((g, i) => (
-            <option key={i} value={g}>
-              {g}
+            <option key={i} value={g.slug}>
+              {g.name}
             </option>
           ))}
         </select>
 
-        {/* PLATFORMS (DYNAMIC) */}
+        {/* PLATFORMS (FIXED: slug as value) */}
         <select
           value={selectedPlatform}
           onChange={(e) => setSelectedPlatform(e.target.value)}
@@ -197,8 +204,8 @@ function GamesPage() {
         >
           <option value="">All Platforms</option>
           {platforms.map((p, i) => (
-            <option key={i} value={p}>
-              {p}
+            <option key={i} value={p.slug}>
+              {p.name}
             </option>
           ))}
         </select>
