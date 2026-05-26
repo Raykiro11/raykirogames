@@ -33,12 +33,18 @@ function GamesPage() {
       const data = await res.json()
 
       if (data.status === "success") {
-        if (reset) {
-          setGames(data.games)
-        } else {
-          setGames((prev) => [...prev, ...data.games])
-        }
+        setGames((prev) => {
+          const newGames = reset ? data.games : [...prev, ...data.games]
 
+          // remove duplicates (important for infinite scroll stability)
+          const unique = Array.from(
+            new Map(newGames.map(g => [g.id, g])).values()
+          )
+
+          return unique
+        })
+
+        // stop condition
         if (data.games.length < 20) {
           setHasMore(false)
         }
@@ -57,11 +63,20 @@ function GamesPage() {
     setGames([])
     setPage(1)
     setHasMore(true)
+
     fetchGames(1, true)
   }, [search, ordering])
 
   // =========================
-  // INFINITE SCROLL (PRO)
+  // LOAD NEXT PAGE WHEN PAGE CHANGES
+  // =========================
+  useEffect(() => {
+    if (page === 1) return
+    fetchGames(page, false)
+  }, [page])
+
+  // =========================
+  // INFINITE SCROLL (FIXED)
   // =========================
   const lastGameRef = useCallback(
     (node) => {
@@ -72,15 +87,13 @@ function GamesPage() {
 
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
-          const nextPage = page + 1
-          setPage(nextPage)
-          fetchGames(nextPage)
+          setPage((prev) => prev + 1)
         }
       })
 
       if (node) observerRef.current.observe(node)
     },
-    [loading, hasMore, page]
+    [loading, hasMore]
   )
 
   // =========================
