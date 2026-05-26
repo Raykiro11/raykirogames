@@ -11,56 +11,13 @@ function GamesPage() {
   const [hasMore, setHasMore] = useState(true)
 
   const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
-
   const [ordering, setOrdering] = useState("-added")
 
-  // NEW FILTERS
-  const [genres, setGenres] = useState([])
-  const [platforms, setPlatforms] = useState([])
-
-  const [selectedGenre, setSelectedGenre] = useState("")
-  const [selectedPlatform, setSelectedPlatform] = useState("")
-
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // NEW FILTERS (safe RAWG format)
+  const [genre, setGenre] = useState("")
+  const [platform, setPlatform] = useState("")
 
   const observerRef = useRef(null)
-
-  // =========================
-  // DEBOUNCE SEARCH
-  // =========================
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search)
-    }, 500)
-
-    return () => clearTimeout(timer)
-  }, [search])
-
-  // =========================
-  // LOAD FILTER OPTIONS
-  // =========================
-  useEffect(() => {
-    const loadFilters = async () => {
-      try {
-        const [gRes, pRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/games/genres`),
-          fetch(`${API_BASE_URL}/games/platforms`)
-        ])
-
-        const gData = await gRes.json()
-        const pData = await pRes.json()
-
-        if (gData.status === "success") setGenres(gData.genres)
-        if (pData.status === "success") setPlatforms(pData.platforms)
-
-      } catch (err) {
-        console.error("Error loading filters:", err)
-      }
-    }
-
-    loadFilters()
-  }, [])
 
   // =========================
   // FETCH GAMES
@@ -71,36 +28,44 @@ function GamesPage() {
     setLoading(true)
 
     try {
-      const params = new URLSearchParams({
-        page: pageNumber,
-        page_size: 20,
-        search: debouncedSearch,
-        ordering,
-      })
+      let url = `${API_BASE_URL}/games?page=${pageNumber}&page_size=20`
 
-      if (selectedGenre) params.append("genres", selectedGenre)
-      if (selectedPlatform) params.append("platforms", selectedPlatform)
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`
+      }
 
-      const res = await fetch(`${API_BASE_URL}/games?${params}`)
+      if (ordering) {
+        url += `&ordering=${ordering}`
+      }
+
+      // IMPORTANT: RAWG expects readable names
+      if (genre) {
+        url += `&genres=${encodeURIComponent(genre)}`
+      }
+
+      if (platform) {
+        url += `&platforms=${encodeURIComponent(platform)}`
+      }
+
+      const res = await fetch(url)
       const data = await res.json()
 
       if (data.status === "success") {
-        setGames((prev) => {
-          const combined = reset ? data.games : [...prev, ...data.games]
+        if (reset) {
+          setGames(data.games)
+        } else {
+          setGames((prev) => [...prev, ...data.games])
+        }
 
-          const unique = Array.from(
-            new Map(combined.map(g => [g.id, g])).values()
-          )
-
-          return unique
-        })
-
-        if (data.games.length < 20) {
+        if (!data.games || data.games.length < 20) {
           setHasMore(false)
         }
+      } else {
+        setHasMore(false)
       }
     } catch (err) {
       console.error("Error loading games:", err)
+      setHasMore(false)
     }
 
     setLoading(false)
@@ -113,19 +78,8 @@ function GamesPage() {
     setGames([])
     setPage(1)
     setHasMore(true)
-
-    window.scrollTo({ top: 0, behavior: "smooth" })
-
     fetchGames(1, true)
-  }, [debouncedSearch, ordering, selectedGenre, selectedPlatform])
-
-  // =========================
-  // NEXT PAGE
-  // =========================
-  useEffect(() => {
-    if (page === 1) return
-    fetchGames(page, false)
-  }, [page])
+  }, [search, ordering, genre, platform])
 
   // =========================
   // INFINITE SCROLL
@@ -139,27 +93,27 @@ function GamesPage() {
 
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
-          setPage((prev) => prev + 1)
+          const nextPage = page + 1
+          setPage(nextPage)
+          fetchGames(nextPage)
         }
       })
 
       if (node) observerRef.current.observe(node)
     },
-    [loading, hasMore]
+    [loading, hasMore, page]
   )
 
   // =========================
   // UI
   // =========================
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 p-6">
 
-      {/* =========================
-          SIDEBAR FILTERS
-      ========================= */}
-      <aside className={`bg-white p-4 border-r w-72 ${sidebarOpen ? "" : "hidden md:block"}`}>
+      <h1 className="text-3xl font-bold mb-6">Games</h1>
 
-        <h2 className="text-xl font-bold mb-4">Filters</h2>
+      {/* FILTERS */}
+      <div className="flex gap-4 mb-6 flex-wrap">
 
         {/* SEARCH */}
         <input
@@ -167,14 +121,14 @@ function GamesPage() {
           placeholder="Search games..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border p-2 rounded w-full mb-3"
+          className="border p-2 rounded w-64"
         />
 
-        {/* ORDERING */}
+        {/* SORT */}
         <select
           value={ordering}
           onChange={(e) => setOrdering(e.target.value)}
-          className="border p-2 rounded w-full mb-4"
+          className="border p-2 rounded"
         >
           <option value="-added">Most Popular</option>
           <option value="-released">Newest</option>
@@ -182,98 +136,95 @@ function GamesPage() {
           <option value="-rating">Top Rated</option>
         </select>
 
-        {/* GENRES */}
-        <div className="mb-4">
-          <h3 className="font-semibold mb-2">Genres</h3>
-          <select
-            value={selectedGenre}
-            onChange={(e) => setSelectedGenre(e.target.value)}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">All Genres</option>
-            {genres.map((g) => (
-              <option key={g} value={g}>{g}</option>
-            ))}
-          </select>
-        </div>
+        {/* GENRE (SAFE RAWG VALUES) */}
+        <select
+          value={genre}
+          onChange={(e) => setGenre(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value="">All Genres</option>
+          <option value="Action">Action</option>
+          <option value="Adventure">Adventure</option>
+          <option value="RPG">RPG</option>
+          <option value="Shooter">Shooter</option>
+          <option value="Strategy">Strategy</option>
+        </select>
 
-        {/* PLATFORMS */}
-        <div>
-          <h3 className="font-semibold mb-2">Platforms</h3>
-          <select
-            value={selectedPlatform}
-            onChange={(e) => setSelectedPlatform(e.target.value)}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">All Platforms</option>
-            {platforms.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
+        {/* PLATFORM (SAFE RAWG VALUES) */}
+        <select
+          value={platform}
+          onChange={(e) => setPlatform(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value="">All Platforms</option>
+          <option value="PC">PC</option>
+          <option value="PlayStation 5">PlayStation 5</option>
+          <option value="PlayStation 4">PlayStation 4</option>
+          <option value="Xbox One">Xbox One</option>
+          <option value="Xbox Series S/X">Xbox Series S/X</option>
+          <option value="Nintendo Switch">Nintendo Switch</option>
+        </select>
 
-      </aside>
+      </div>
 
-      {/* =========================
-          MAIN CONTENT
-      ========================= */}
-      <main className="flex-1 p-6">
+      {/* GAMES GRID */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Games</h1>
+        {games.map((game, index) => {
+          const isLast = index === games.length - 1
 
-          <button
-            className="md:hidden px-3 py-2 bg-gray-200 rounded"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            Filters
-          </button>
-        </div>
+          return (
+            <Link
+              key={game.id}
+              to={`/games/${game.id}`}
+              ref={isLast ? lastGameRef : null}
+            >
+              <div className="bg-white rounded shadow overflow-hidden hover:scale-105 transition">
 
-        {/* GRID */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-
-          {games.map((game, index) => {
-            const isLast = index === games.length - 1
-
-            return (
-              <Link
-                key={game.id}
-                to={`/games/${game.id}`}
-                ref={isLast ? lastGameRef : null}
-                className="bg-white rounded shadow overflow-hidden hover:scale-105 transition"
-              >
                 <img
                   src={game.background_image}
                   alt={game.name}
                   className="w-full h-40 object-cover"
+                  onError={(e) =>
+                    (e.target.src =
+                      "data:image/svg+xml;base64,...")
+                  }
                 />
 
                 <div className="p-2">
-                  <h3 className="font-semibold truncate">{game.name}</h3>
+                  <h3 className="font-semibold truncate">
+                    {game.name}
+                  </h3>
                   <p className="text-sm text-gray-500">
                     ⭐ {game.rating || "N/A"}
                   </p>
                 </div>
-              </Link>
-            )
-          })}
 
-        </div>
+              </div>
+            </Link>
+          )
+        })}
 
-        {/* LOADING */}
-        {loading && (
-          <p className="text-center mt-6">Loading more games...</p>
-        )}
+      </div>
 
-        {/* END */}
-        {!hasMore && (
-          <p className="text-center mt-6 text-gray-500">
-            No more games
-          </p>
-        )}
+      {/* LOADING */}
+      {loading && (
+        <p className="text-center mt-6">Loading more games...</p>
+      )}
 
-      </main>
+      {/* END */}
+      {!hasMore && games.length > 0 && (
+        <p className="text-center mt-6 text-gray-500">
+          No more games
+        </p>
+      )}
+
+      {/* EMPTY STATE FIX */}
+      {!loading && games.length === 0 && (
+        <p className="text-center mt-6 text-gray-500">
+          No games found for this filter
+        </p>
+      )}
 
     </div>
   )
