@@ -4,16 +4,20 @@ import { Link } from 'react-router-dom'
 
 function GamesPage() {
   const { t } = useTranslation('common')
+
   const [games, setGames] = useState([])
   const [recentPopularGames, setRecentPopularGames] = useState([])
   const [genres, setGenres] = useState([])
   const [platforms, setPlatforms] = useState([])
+
   const [loading, setLoading] = useState(true)
   const [loadingRecent, setLoadingRecent] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+
   const [hasMore, setHasMore] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalGames, setTotalGames] = useState(0)
+
   const [filters, setFilters] = useState({
     genre: '',
     platform: '',
@@ -26,21 +30,30 @@ function GamesPage() {
   const lastGameElementRef = useCallback(node => {
     if (loading || loadingMore) return
     if (observer.current) observer.current.disconnect()
+
     observer.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasMore) {
         loadMoreGames()
       }
     })
+
     if (node) observer.current.observe(node)
   }, [loading, loadingMore, hasMore])
 
-  // Recent games
+  // =========================
+  // RECENT GAMES
+  // =========================
   useEffect(() => {
     const fetchRecentPopularGames = async () => {
       try {
         setLoadingRecent(true)
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/recent-popular?page_size=12`)
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/games/recent-popular?page_size=12`
+        )
+
         const data = await response.json()
+
         if (data.status === 'success') {
           setRecentPopularGames(data.games)
         }
@@ -54,25 +67,27 @@ function GamesPage() {
     fetchRecentPopularGames()
   }, [])
 
-  // Genres + platforms
+  // =========================
+  // GENRES + PLATFORMS
+  // =========================
   useEffect(() => {
     const fetchGenres = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/genres`)
-        const data = await response.json()
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/genres`)
+        const data = await res.json()
         if (data.status === 'success') setGenres(data.genres)
-      } catch (error) {
-        console.error(error)
+      } catch (e) {
+        console.error(e)
       }
     }
 
     const fetchPlatforms = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/platforms`)
-        const data = await response.json()
+        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/games/platforms`)
+        const data = await res.json()
         if (data.status === 'success') setPlatforms(data.platforms)
-      } catch (error) {
-        console.error(error)
+      } catch (e) {
+        console.error(e)
       }
     }
 
@@ -80,9 +95,12 @@ function GamesPage() {
     fetchPlatforms()
   }, [])
 
-  const fetchGames = async (resetGames = true) => {
+  // =========================
+  // FETCH GAMES
+  // =========================
+  const fetchGames = async (reset = true) => {
     try {
-      if (resetGames) {
+      if (reset) {
         setLoading(true)
         setCurrentPage(1)
       } else {
@@ -90,22 +108,29 @@ function GamesPage() {
       }
 
       const params = new URLSearchParams()
-      let url = `${import.meta.env.VITE_API_BASE_URL}/games`
 
-      params.append('page', resetGames ? '1' : currentPage.toString())
-      if (filters.search) params.append('search', filters.search)
-      if (filters.genre) params.append('genres', filters.genre)
-      if (filters.platform) params.append('platforms', filters.platform)
-      params.append('ordering', filters.ordering)
+      params.append('page', reset ? '1' : currentPage.toString())
       params.append('page_size', '20')
+      params.append('ordering', filters.ordering)
 
-      if (params.toString()) url += `?${params.toString()}`
+      if (filters.search) params.append('search', filters.search)
+
+      // 🔥 FIX: RAWG expects SLUGS, not display names
+      if (filters.genre) {
+        params.append('genres', filters.genre.toLowerCase())
+      }
+
+      if (filters.platform) {
+        params.append('platforms', filters.platform.toLowerCase())
+      }
+
+      const url = `${import.meta.env.VITE_API_BASE_URL}/games?${params.toString()}`
 
       const response = await fetch(url)
       const data = await response.json()
 
       if (data.status === 'success') {
-        if (resetGames) {
+        if (reset) {
           setGames(data.games)
           setCurrentPage(2)
         } else {
@@ -125,9 +150,14 @@ function GamesPage() {
   }
 
   const loadMoreGames = () => {
-    if (!loadingMore && hasMore) fetchGames(false)
+    if (!loadingMore && hasMore) {
+      fetchGames(false)
+    }
   }
 
+  // =========================
+  // REFRESH ON FILTER CHANGE
+  // =========================
   useEffect(() => {
     const timeout = setTimeout(() => {
       fetchGames(true)
@@ -149,25 +179,24 @@ function GamesPage() {
     })
   }
 
-  const hasActiveFilters = filters.genre || filters.platform || filters.search
+  const hasActiveFilters =
+    filters.genre || filters.platform || filters.search
 
+  // =========================
+  // UI
+  // =========================
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
-        <div className="container mx-auto px-4 py-12">
-          <h1 className="text-4xl font-bold mb-4">{t('games.title')}</h1>
-          <p className="text-xl opacity-90">{t('games.subtitle')}</p>
-        </div>
-      </div>
 
       <div className="container mx-auto px-4 py-8">
 
-        {/* filters */}
-        <div className="mb-6 flex gap-4">
+        {/* FILTERS */}
+        <div className="mb-6 flex gap-4 flex-wrap">
+
           <input
             value={filters.search}
             onChange={(e) => handleFilterChange('search', e.target.value)}
-            placeholder="Search"
+            placeholder="Search games..."
             className="border p-2"
           />
 
@@ -176,7 +205,11 @@ function GamesPage() {
             onChange={(e) => handleFilterChange('genre', e.target.value)}
           >
             <option value="">All Genres</option>
-            {genres.map((g, i) => <option key={i}>{g}</option>)}
+            {genres.map((g, i) => (
+              <option key={i} value={g}>
+                {g}
+              </option>
+            ))}
           </select>
 
           <select
@@ -184,12 +217,23 @@ function GamesPage() {
             onChange={(e) => handleFilterChange('platform', e.target.value)}
           >
             <option value="">All Platforms</option>
-            {platforms.map((p, i) => <option key={i}>{p}</option>)}
+            {platforms.map((p, i) => (
+              <option key={i} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
+
+          {hasActiveFilters && (
+            <button onClick={clearFilters}>
+              Clear
+            </button>
+          )}
         </div>
 
-        {/* grid */}
+        {/* GRID */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
           {games.map((game, index) => {
             const isLast = index === games.length - 1
 
@@ -200,7 +244,10 @@ function GamesPage() {
                 ref={isLast ? lastGameElementRef : null}
               >
                 <div className="bg-white p-2">
-                  <img src={game.background_image} className="h-40 w-full object-cover" />
+                  <img
+                    src={game.background_image}
+                    className="h-40 w-full object-cover"
+                  />
                   <h3>{game.name}</h3>
                 </div>
               </Link>
@@ -208,8 +255,10 @@ function GamesPage() {
           })}
         </div>
 
+        {/* STATES */}
         {loadingMore && <p>Loading...</p>}
         {!hasMore && <p>No more games</p>}
+
       </div>
     </div>
   )
