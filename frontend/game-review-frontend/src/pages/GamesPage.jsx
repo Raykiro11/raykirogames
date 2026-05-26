@@ -11,9 +11,21 @@ function GamesPage() {
   const [hasMore, setHasMore] = useState(true)
 
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [ordering, setOrdering] = useState("-added")
 
   const observerRef = useRef(null)
+
+  // =========================
+  // DEBOUNCE SEARCH (NEW)
+  // =========================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search])
 
   // =========================
   // FETCH GAMES
@@ -26,7 +38,7 @@ function GamesPage() {
     try {
       const res = await fetch(
         `${API_BASE_URL}/games?page=${pageNumber}&page_size=20&search=${encodeURIComponent(
-          search
+          debouncedSearch
         )}&ordering=${ordering}`
       )
 
@@ -34,17 +46,17 @@ function GamesPage() {
 
       if (data.status === "success") {
         setGames((prev) => {
-          const newGames = reset ? data.games : [...prev, ...data.games]
+          const combined = reset ? data.games : [...prev, ...data.games]
 
-          // remove duplicates (important for infinite scroll stability)
+          // remove duplicates
           const unique = Array.from(
-            new Map(newGames.map(g => [g.id, g])).values()
+            new Map(combined.map(g => [g.id, g])).values()
           )
 
           return unique
         })
 
-        // stop condition
+        // if less than page size → no more data
         if (data.games.length < 20) {
           setHasMore(false)
         }
@@ -57,18 +69,20 @@ function GamesPage() {
   }
 
   // =========================
-  // INITIAL LOAD + RESET
+  // RESET WHEN FILTERS CHANGE (NEW)
   // =========================
   useEffect(() => {
     setGames([])
     setPage(1)
     setHasMore(true)
 
+    window.scrollTo({ top: 0, behavior: "smooth" })
+
     fetchGames(1, true)
-  }, [search, ordering])
+  }, [debouncedSearch, ordering])
 
   // =========================
-  // LOAD NEXT PAGE WHEN PAGE CHANGES
+  // LOAD NEXT PAGE
   // =========================
   useEffect(() => {
     if (page === 1) return
@@ -76,7 +90,7 @@ function GamesPage() {
   }, [page])
 
   // =========================
-  // INFINITE SCROLL (FIXED)
+  // INFINITE SCROLL (STABLE VERSION)
   // =========================
   const lastGameRef = useCallback(
     (node) => {
@@ -104,7 +118,7 @@ function GamesPage() {
 
       <h1 className="text-3xl font-bold mb-6">Games</h1>
 
-      {/* Filters */}
+      {/* FILTERS */}
       <div className="flex gap-4 mb-6 flex-wrap">
 
         <input
@@ -128,11 +142,10 @@ function GamesPage() {
 
       </div>
 
-      {/* Games Grid */}
+      {/* GRID */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
         {games.map((game, index) => {
-
           const isLast = index === games.length - 1
 
           return (
@@ -169,12 +182,12 @@ function GamesPage() {
 
       </div>
 
-      {/* Loading */}
+      {/* LOADING */}
       {loading && (
         <p className="text-center mt-6">Loading more games...</p>
       )}
 
-      {/* End */}
+      {/* END */}
       {!hasMore && (
         <p className="text-center mt-6 text-gray-500">
           No more games
