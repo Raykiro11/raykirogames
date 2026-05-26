@@ -11,13 +11,21 @@ function GamesPage() {
   const [hasMore, setHasMore] = useState(true)
 
   const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
   const [ordering, setOrdering] = useState("-added")
 
-  // NEW FILTERS (safe RAWG format)
-  const [genre, setGenre] = useState("")
-  const [platform, setPlatform] = useState("")
-
   const observerRef = useRef(null)
+
+  // =========================
+  // DEBOUNCE SEARCH (NEW)
+  // =========================
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search])
 
   // =========================
   // FETCH GAMES
@@ -28,61 +36,61 @@ function GamesPage() {
     setLoading(true)
 
     try {
-      let url = `${API_BASE_URL}/games?page=${pageNumber}&page_size=20`
+      const res = await fetch(
+        `${API_BASE_URL}/games?page=${pageNumber}&page_size=20&search=${encodeURIComponent(
+          debouncedSearch
+        )}&ordering=${ordering}`
+      )
 
-      if (search) {
-        url += `&search=${encodeURIComponent(search)}`
-      }
-
-      if (ordering) {
-        url += `&ordering=${ordering}`
-      }
-
-      // IMPORTANT: RAWG expects readable names
-      if (genre) {
-        url += `&genres=${encodeURIComponent(genre)}`
-      }
-
-      if (platform) {
-        url += `&platforms=${encodeURIComponent(platform)}`
-      }
-
-      const res = await fetch(url)
       const data = await res.json()
 
       if (data.status === "success") {
-        if (reset) {
-          setGames(data.games)
-        } else {
-          setGames((prev) => [...prev, ...data.games])
-        }
+        setGames((prev) => {
+          const combined = reset ? data.games : [...prev, ...data.games]
 
-        if (!data.games || data.games.length < 20) {
+          // remove duplicates
+          const unique = Array.from(
+            new Map(combined.map(g => [g.id, g])).values()
+          )
+
+          return unique
+        })
+
+        // if less than page size → no more data
+        if (data.games.length < 20) {
           setHasMore(false)
         }
-      } else {
-        setHasMore(false)
       }
     } catch (err) {
       console.error("Error loading games:", err)
-      setHasMore(false)
     }
 
     setLoading(false)
   }
 
   // =========================
-  // RESET ON FILTER CHANGE
+  // RESET WHEN FILTERS CHANGE (NEW)
   // =========================
   useEffect(() => {
     setGames([])
     setPage(1)
     setHasMore(true)
+
+    window.scrollTo({ top: 0, behavior: "smooth" })
+
     fetchGames(1, true)
-  }, [search, ordering, genre, platform])
+  }, [debouncedSearch, ordering])
 
   // =========================
-  // INFINITE SCROLL
+  // LOAD NEXT PAGE
+  // =========================
+  useEffect(() => {
+    if (page === 1) return
+    fetchGames(page, false)
+  }, [page])
+
+  // =========================
+  // INFINITE SCROLL (STABLE VERSION)
   // =========================
   const lastGameRef = useCallback(
     (node) => {
@@ -93,15 +101,13 @@ function GamesPage() {
 
       observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
-          const nextPage = page + 1
-          setPage(nextPage)
-          fetchGames(nextPage)
+          setPage((prev) => prev + 1)
         }
       })
 
       if (node) observerRef.current.observe(node)
     },
-    [loading, hasMore, page]
+    [loading, hasMore]
   )
 
   // =========================
@@ -115,7 +121,6 @@ function GamesPage() {
       {/* FILTERS */}
       <div className="flex gap-4 mb-6 flex-wrap">
 
-        {/* SEARCH */}
         <input
           type="text"
           placeholder="Search games..."
@@ -124,7 +129,6 @@ function GamesPage() {
           className="border p-2 rounded w-64"
         />
 
-        {/* SORT */}
         <select
           value={ordering}
           onChange={(e) => setOrdering(e.target.value)}
@@ -136,38 +140,9 @@ function GamesPage() {
           <option value="-rating">Top Rated</option>
         </select>
 
-        {/* GENRE (SAFE RAWG VALUES) */}
-        <select
-          value={genre}
-          onChange={(e) => setGenre(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">All Genres</option>
-          <option value="Action">Action</option>
-          <option value="Adventure">Adventure</option>
-          <option value="RPG">RPG</option>
-          <option value="Shooter">Shooter</option>
-          <option value="Strategy">Strategy</option>
-        </select>
-
-        {/* PLATFORM (SAFE RAWG VALUES) */}
-        <select
-          value={platform}
-          onChange={(e) => setPlatform(e.target.value)}
-          className="border p-2 rounded"
-        >
-          <option value="">All Platforms</option>
-          <option value="PC">PC</option>
-          <option value="PlayStation 5">PlayStation 5</option>
-          <option value="PlayStation 4">PlayStation 4</option>
-          <option value="Xbox One">Xbox One</option>
-          <option value="Xbox Series S/X">Xbox Series S/X</option>
-          <option value="Nintendo Switch">Nintendo Switch</option>
-        </select>
-
       </div>
 
-      {/* GAMES GRID */}
+      {/* GRID */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
         {games.map((game, index) => {
@@ -213,16 +188,9 @@ function GamesPage() {
       )}
 
       {/* END */}
-      {!hasMore && games.length > 0 && (
+      {!hasMore && (
         <p className="text-center mt-6 text-gray-500">
           No more games
-        </p>
-      )}
-
-      {/* EMPTY STATE FIX */}
-      {!loading && games.length === 0 && (
-        <p className="text-center mt-6 text-gray-500">
-          No games found for this filter
         </p>
       )}
 
