@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
 import { Link } from "react-router-dom"
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
@@ -13,11 +13,13 @@ function GamesPage() {
   const [search, setSearch] = useState("")
   const [ordering, setOrdering] = useState("-added")
 
-  // ========================
+  const observerRef = useRef(null)
+
+  // =========================
   // FETCH GAMES
-  // ========================
+  // =========================
   const fetchGames = async (pageNumber, reset = false) => {
-    if (loading || (!hasMore && !reset)) return
+    if (loading) return
 
     setLoading(true)
 
@@ -37,21 +39,20 @@ function GamesPage() {
           setGames((prev) => [...prev, ...data.games])
         }
 
-        // stop condition
         if (data.games.length < 20) {
           setHasMore(false)
         }
       }
     } catch (err) {
-      console.error("Error fetching games:", err)
+      console.error("Error loading games:", err)
     }
 
     setLoading(false)
   }
 
-  // ========================
-  // INITIAL LOAD
-  // ========================
+  // =========================
+  // INITIAL LOAD + RESET
+  // =========================
   useEffect(() => {
     setGames([])
     setPage(1)
@@ -59,35 +60,35 @@ function GamesPage() {
     fetchGames(1, true)
   }, [search, ordering])
 
-  // ========================
-  // INFINITE SCROLL
-  // ========================
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY
-      const windowHeight = window.innerHeight
-      const docHeight = document.documentElement.scrollHeight
+  // =========================
+  // INFINITE SCROLL (PRO)
+  // =========================
+  const lastGameRef = useCallback(
+    (node) => {
+      if (loading) return
+      if (!hasMore) return
 
-      if (scrollTop + windowHeight >= docHeight - 200) {
-        if (!loading && hasMore) {
+      if (observerRef.current) observerRef.current.disconnect()
+
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
           const nextPage = page + 1
           setPage(nextPage)
           fetchGames(nextPage)
         }
-      }
-    }
+      })
 
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [page, loading, hasMore])
+      if (node) observerRef.current.observe(node)
+    },
+    [loading, hasMore, page]
+  )
 
-  // ========================
+  // =========================
   // UI
-  // ========================
+  // =========================
   return (
     <div className="min-h-screen bg-gray-50 p-6">
 
-      {/* Header */}
       <h1 className="text-3xl font-bold mb-6">Games</h1>
 
       {/* Filters */}
@@ -117,30 +118,41 @@ function GamesPage() {
       {/* Games Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
-        {games.map((game) => (
-          <Link key={game.id} to={`/games/${game.id}`}>
-            <div className="bg-white rounded shadow hover:scale-105 transition overflow-hidden">
+        {games.map((game, index) => {
 
-              <img
-                src={game.background_image}
-                alt={game.name}
-                className="w-full h-40 object-cover"
-                onError={(e) =>
-                  (e.target.src =
-                    "data:image/svg+xml;base64,...")
-                }
-              />
+          const isLast = index === games.length - 1
 
-              <div className="p-2">
-                <h3 className="font-semibold truncate">{game.name}</h3>
-                <p className="text-sm text-gray-500">
-                  ⭐ {game.rating || "N/A"}
-                </p>
+          return (
+            <Link
+              key={game.id}
+              to={`/games/${game.id}`}
+              ref={isLast ? lastGameRef : null}
+            >
+              <div className="bg-white rounded shadow overflow-hidden hover:scale-105 transition">
+
+                <img
+                  src={game.background_image}
+                  alt={game.name}
+                  className="w-full h-40 object-cover"
+                  onError={(e) =>
+                    (e.target.src =
+                      "data:image/svg+xml;base64,...")
+                  }
+                />
+
+                <div className="p-2">
+                  <h3 className="font-semibold truncate">
+                    {game.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    ⭐ {game.rating || "N/A"}
+                  </p>
+                </div>
+
               </div>
-
-            </div>
-          </Link>
-        ))}
+            </Link>
+          )
+        })}
 
       </div>
 
