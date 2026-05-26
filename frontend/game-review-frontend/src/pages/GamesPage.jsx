@@ -12,12 +12,22 @@ function GamesPage() {
 
   const [search, setSearch] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
+
   const [ordering, setOrdering] = useState("-added")
+
+  // NEW FILTERS
+  const [genres, setGenres] = useState([])
+  const [platforms, setPlatforms] = useState([])
+
+  const [selectedGenre, setSelectedGenre] = useState("")
+  const [selectedPlatform, setSelectedPlatform] = useState("")
+
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const observerRef = useRef(null)
 
   // =========================
-  // DEBOUNCE SEARCH (NEW)
+  // DEBOUNCE SEARCH
   // =========================
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -28,6 +38,31 @@ function GamesPage() {
   }, [search])
 
   // =========================
+  // LOAD FILTER OPTIONS
+  // =========================
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const [gRes, pRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/games/genres`),
+          fetch(`${API_BASE_URL}/games/platforms`)
+        ])
+
+        const gData = await gRes.json()
+        const pData = await pRes.json()
+
+        if (gData.status === "success") setGenres(gData.genres)
+        if (pData.status === "success") setPlatforms(pData.platforms)
+
+      } catch (err) {
+        console.error("Error loading filters:", err)
+      }
+    }
+
+    loadFilters()
+  }, [])
+
+  // =========================
   // FETCH GAMES
   // =========================
   const fetchGames = async (pageNumber, reset = false) => {
@@ -36,19 +71,23 @@ function GamesPage() {
     setLoading(true)
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/games?page=${pageNumber}&page_size=20&search=${encodeURIComponent(
-          debouncedSearch
-        )}&ordering=${ordering}`
-      )
+      const params = new URLSearchParams({
+        page: pageNumber,
+        page_size: 20,
+        search: debouncedSearch,
+        ordering,
+      })
 
+      if (selectedGenre) params.append("genres", selectedGenre)
+      if (selectedPlatform) params.append("platforms", selectedPlatform)
+
+      const res = await fetch(`${API_BASE_URL}/games?${params}`)
       const data = await res.json()
 
       if (data.status === "success") {
         setGames((prev) => {
           const combined = reset ? data.games : [...prev, ...data.games]
 
-          // remove duplicates
           const unique = Array.from(
             new Map(combined.map(g => [g.id, g])).values()
           )
@@ -56,7 +95,6 @@ function GamesPage() {
           return unique
         })
 
-        // if less than page size → no more data
         if (data.games.length < 20) {
           setHasMore(false)
         }
@@ -69,7 +107,7 @@ function GamesPage() {
   }
 
   // =========================
-  // RESET WHEN FILTERS CHANGE (NEW)
+  // RESET ON FILTER CHANGE
   // =========================
   useEffect(() => {
     setGames([])
@@ -79,10 +117,10 @@ function GamesPage() {
     window.scrollTo({ top: 0, behavior: "smooth" })
 
     fetchGames(1, true)
-  }, [debouncedSearch, ordering])
+  }, [debouncedSearch, ordering, selectedGenre, selectedPlatform])
 
   // =========================
-  // LOAD NEXT PAGE
+  // NEXT PAGE
   // =========================
   useEffect(() => {
     if (page === 1) return
@@ -90,7 +128,7 @@ function GamesPage() {
   }, [page])
 
   // =========================
-  // INFINITE SCROLL (STABLE VERSION)
+  // INFINITE SCROLL
   // =========================
   const lastGameRef = useCallback(
     (node) => {
@@ -114,25 +152,29 @@ function GamesPage() {
   // UI
   // =========================
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 flex">
 
-      <h1 className="text-3xl font-bold mb-6">Games</h1>
+      {/* =========================
+          SIDEBAR FILTERS
+      ========================= */}
+      <aside className={`bg-white p-4 border-r w-72 ${sidebarOpen ? "" : "hidden md:block"}`}>
 
-      {/* FILTERS */}
-      <div className="flex gap-4 mb-6 flex-wrap">
+        <h2 className="text-xl font-bold mb-4">Filters</h2>
 
+        {/* SEARCH */}
         <input
           type="text"
           placeholder="Search games..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border p-2 rounded w-64"
+          className="border p-2 rounded w-full mb-3"
         />
 
+        {/* ORDERING */}
         <select
           value={ordering}
           onChange={(e) => setOrdering(e.target.value)}
-          className="border p-2 rounded"
+          className="border p-2 rounded w-full mb-4"
         >
           <option value="-added">Most Popular</option>
           <option value="-released">Newest</option>
@@ -140,59 +182,98 @@ function GamesPage() {
           <option value="-rating">Top Rated</option>
         </select>
 
-      </div>
+        {/* GENRES */}
+        <div className="mb-4">
+          <h3 className="font-semibold mb-2">Genres</h3>
+          <select
+            value={selectedGenre}
+            onChange={(e) => setSelectedGenre(e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">All Genres</option>
+            {genres.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+        </div>
 
-      {/* GRID */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* PLATFORMS */}
+        <div>
+          <h3 className="font-semibold mb-2">Platforms</h3>
+          <select
+            value={selectedPlatform}
+            onChange={(e) => setSelectedPlatform(e.target.value)}
+            className="border p-2 rounded w-full"
+          >
+            <option value="">All Platforms</option>
+            {platforms.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
 
-        {games.map((game, index) => {
-          const isLast = index === games.length - 1
+      </aside>
 
-          return (
-            <Link
-              key={game.id}
-              to={`/games/${game.id}`}
-              ref={isLast ? lastGameRef : null}
-            >
-              <div className="bg-white rounded shadow overflow-hidden hover:scale-105 transition">
+      {/* =========================
+          MAIN CONTENT
+      ========================= */}
+      <main className="flex-1 p-6">
 
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Games</h1>
+
+          <button
+            className="md:hidden px-3 py-2 bg-gray-200 rounded"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            Filters
+          </button>
+        </div>
+
+        {/* GRID */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
+          {games.map((game, index) => {
+            const isLast = index === games.length - 1
+
+            return (
+              <Link
+                key={game.id}
+                to={`/games/${game.id}`}
+                ref={isLast ? lastGameRef : null}
+                className="bg-white rounded shadow overflow-hidden hover:scale-105 transition"
+              >
                 <img
                   src={game.background_image}
                   alt={game.name}
                   className="w-full h-40 object-cover"
-                  onError={(e) =>
-                    (e.target.src =
-                      "data:image/svg+xml;base64,...")
-                  }
                 />
 
                 <div className="p-2">
-                  <h3 className="font-semibold truncate">
-                    {game.name}
-                  </h3>
+                  <h3 className="font-semibold truncate">{game.name}</h3>
                   <p className="text-sm text-gray-500">
                     ⭐ {game.rating || "N/A"}
                   </p>
                 </div>
+              </Link>
+            )
+          })}
 
-              </div>
-            </Link>
-          )
-        })}
+        </div>
 
-      </div>
+        {/* LOADING */}
+        {loading && (
+          <p className="text-center mt-6">Loading more games...</p>
+        )}
 
-      {/* LOADING */}
-      {loading && (
-        <p className="text-center mt-6">Loading more games...</p>
-      )}
+        {/* END */}
+        {!hasMore && (
+          <p className="text-center mt-6 text-gray-500">
+            No more games
+          </p>
+        )}
 
-      {/* END */}
-      {!hasMore && (
-        <p className="text-center mt-6 text-gray-500">
-          No more games
-        </p>
-      )}
+      </main>
 
     </div>
   )
