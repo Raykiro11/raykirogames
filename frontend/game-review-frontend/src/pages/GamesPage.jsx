@@ -1,84 +1,125 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
-import { Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
+import React, { useEffect, useState, useRef, useCallback } from "react"
+import { Link } from "react-router-dom"
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 function GamesPage() {
-  const { t } = useTranslation('common')
-
   const [games, setGames] = useState([])
+
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
 
-  const observer = useRef()
+  const [search, setSearch] = useState("")
+  const [ordering, setOrdering] = useState("-added")
 
-  const fetchGames = async (pageNumber) => {
+  const observerRef = useRef(null)
+
+  // =========================
+  // FETCH GAMES
+  // =========================
+  const fetchGames = async (pageNumber, reset = false) => {
     if (loading) return
 
     setLoading(true)
 
     try {
       const res = await fetch(
-        `${API_BASE_URL}/games?page=${pageNumber}&page_size=20`
+        `${API_BASE_URL}/games?page=${pageNumber}&page_size=20&search=${encodeURIComponent(
+          search
+        )}&ordering=${ordering}`
       )
+
       const data = await res.json()
 
-      if (data.status === 'success') {
-        setGames((prev) => {
-          const existingIds = new Set(prev.map(g => g.id))
-          const newGames = data.games.filter(g => !existingIds.has(g.id))
-          return [...prev, ...newGames]
-        })
+      if (data.status === "success") {
+        if (reset) {
+          setGames(data.games)
+        } else {
+          setGames((prev) => [...prev, ...data.games])
+        }
 
-        // backend still sends pagination info
-        if (data.games.length === 0) {
+        if (data.games.length < 20) {
           setHasMore(false)
         }
       }
     } catch (err) {
-      console.error('Error loading games:', err)
-    } finally {
-      setLoading(false)
+      console.error("Error loading games:", err)
     }
+
+    setLoading(false)
   }
 
-  // initial load
+  // =========================
+  // INITIAL LOAD + RESET
+  // =========================
   useEffect(() => {
-    fetchGames(1)
-  }, [])
+    setGames([])
+    setPage(1)
+    setHasMore(true)
+    fetchGames(1, true)
+  }, [search, ordering])
 
-  // load more when page changes
-  useEffect(() => {
-    if (page === 1) return
-    fetchGames(page)
-  }, [page])
-
+  // =========================
+  // INFINITE SCROLL (PRO)
+  // =========================
   const lastGameRef = useCallback(
     (node) => {
       if (loading) return
       if (!hasMore) return
 
-      if (observer.current) observer.current.disconnect()
+      if (observerRef.current) observerRef.current.disconnect()
 
-      observer.current = new IntersectionObserver((entries) => {
+      observerRef.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting) {
-          setPage((prev) => prev + 1)
+          const nextPage = page + 1
+          setPage(nextPage)
+          fetchGames(nextPage)
         }
       })
 
-      if (node) observer.current.observe(node)
+      if (node) observerRef.current.observe(node)
     },
-    [loading, hasMore]
+    [loading, hasMore, page]
   )
 
+  // =========================
+  // UI
+  // =========================
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <h1 className="text-3xl font-bold mb-6">{t('games.title')}</h1>
 
+      <h1 className="text-3xl font-bold mb-6">Games</h1>
+
+      {/* Filters */}
+      <div className="flex gap-4 mb-6 flex-wrap">
+
+        <input
+          type="text"
+          placeholder="Search games..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border p-2 rounded w-64"
+        />
+
+        <select
+          value={ordering}
+          onChange={(e) => setOrdering(e.target.value)}
+          className="border p-2 rounded"
+        >
+          <option value="-added">Most Popular</option>
+          <option value="-released">Newest</option>
+          <option value="name">Name A-Z</option>
+          <option value="-rating">Top Rated</option>
+        </select>
+
+      </div>
+
+      {/* Games Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+
         {games.map((game, index) => {
+
           const isLast = index === games.length - 1
 
           return (
@@ -86,36 +127,47 @@ function GamesPage() {
               key={game.id}
               to={`/games/${game.id}`}
               ref={isLast ? lastGameRef : null}
-              className="bg-white rounded-lg shadow hover:scale-105 transition overflow-hidden"
             >
-              <img
-                src={game.background_image}
-                alt={game.name}
-                className="w-full h-40 object-cover"
-              />
+              <div className="bg-white rounded shadow overflow-hidden hover:scale-105 transition">
 
-              <div className="p-3">
-                <h3 className="font-semibold truncate">{game.name}</h3>
-                <p className="text-sm text-gray-500">
-                  ⭐ {game.rating || 'N/A'}
-                </p>
+                <img
+                  src={game.background_image}
+                  alt={game.name}
+                  className="w-full h-40 object-cover"
+                  onError={(e) =>
+                    (e.target.src =
+                      "data:image/svg+xml;base64,...")
+                  }
+                />
+
+                <div className="p-2">
+                  <h3 className="font-semibold truncate">
+                    {game.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    ⭐ {game.rating || "N/A"}
+                  </p>
+                </div>
+
               </div>
             </Link>
           )
         })}
+
       </div>
 
+      {/* Loading */}
       {loading && (
-        <div className="text-center py-6 text-gray-500">
-          Loading more games...
-        </div>
+        <p className="text-center mt-6">Loading more games...</p>
       )}
 
+      {/* End */}
       {!hasMore && (
-        <div className="text-center py-6 text-gray-400">
+        <p className="text-center mt-6 text-gray-500">
           No more games
-        </div>
+        </p>
       )}
+
     </div>
   )
 }
