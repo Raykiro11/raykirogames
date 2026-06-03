@@ -5,25 +5,22 @@ import { fetchPopularGames, fetchRecentGames, fetchNews, fetchConsoleNews } from
 import { format } from 'date-fns'
 import { pt, enUS, es } from 'date-fns/locale'
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+// Configure API base URL for search functionality
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 function HomePage() {
   const { t, i18n } = useTranslation('common')
   const navigate = useNavigate()
-
   const [popularGames, setPopularGames] = useState([])
   const [recentGames, setRecentGames] = useState([])
+  const [gamingNews, setGamingNews] = useState([])
   const [consoleNews, setConsoleNews] = useState([])
-
   const [loadingGames, setLoadingGames] = useState(true)
   const [loadingNews, setLoadingNews] = useState(true)
-
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [searchLoading, setSearchLoading] = useState(false)
-
   const searchRef = useRef(null)
   const searchResultsRef = useRef(null)
 
@@ -36,33 +33,23 @@ function HomePage() {
       try {
         setLoadingGames(true)
         setLoadingNews(true)
-
-        const [popularData, recentData, consoleNewsData] =
-          await Promise.all([
-            fetchPopularGames(1, 20),
-            fetchRecentGames(1, 20),
-            fetchConsoleNews()
-          ])
-
-        if (popularData.status === 'success') {
-          setPopularGames(popularData.games)
-        }
-
-        if (recentData.status === 'success') {
-          setRecentGames(recentData.games)
-        }
-
-        if (consoleNewsData.status === 'ok') {
-          setConsoleNews(consoleNewsData.articles || [])
-        }
-      } catch (err) {
-        console.error(err)
+        const [popularData, recentData, newsData, consoleNewsData] = await Promise.all([
+          fetchPopularGames(1, 20),
+          fetchRecentGames(1, 20),
+          fetchNews(),
+          fetchConsoleNews()
+        ])
+        if (popularData.status === 'success') setPopularGames(popularData.games)
+        if (recentData.status === 'success') setRecentGames(recentData.games)
+        if (newsData.status === 'success') setGamingNews(newsData.news || [])
+        if (consoleNewsData.status === 'ok') setConsoleNews(consoleNewsData.articles || [])
+      } catch (error) {
+        console.error('Error loading data:', error)
       } finally {
         setLoadingGames(false)
         setLoadingNews(false)
       }
     }
-
     loadData()
   }, [])
 
@@ -73,96 +60,71 @@ function HomePage() {
         setShowSearchResults(false)
         return
       }
-
       setSearchLoading(true)
-
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/games?search=${encodeURIComponent(
-            searchQuery.trim()
-          )}&page_size=8`
-        )
-
-        const data = await res.json()
-
+        const response = await fetch(`${API_BASE_URL}/games?search=${encodeURIComponent(searchQuery.trim())}&page_size=8`)
+        const data = await response.json()
         if (data.status === 'success') {
           setSearchResults(data.games)
           setShowSearchResults(true)
         }
-      } catch (err) {
-        console.error(err)
+      } catch (error) {
+        console.error('Error searching games:', error)
         setSearchResults([])
       } finally {
         setSearchLoading(false)
       }
     }
-
-    const t = setTimeout(searchGames, 300)
-    return () => clearTimeout(t)
+    const timeoutId = setTimeout(searchGames, 300)
+    return () => clearTimeout(timeoutId)
   }, [searchQuery])
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
+    const handleClickOutside = (event) => {
       if (
         searchRef.current &&
-        !searchRef.current.contains(e.target) &&
+        !searchRef.current.contains(event.target) &&
         searchResultsRef.current &&
-        !searchResultsRef.current.contains(e.target)
+        !searchResultsRef.current.contains(event.target)
       ) {
         setShowSearchResults(false)
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside)
-    return () =>
-      document.removeEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSearchInputChange = (e) =>
-    setSearchQuery(e.target.value)
-
-  const handleSearchResultClick = (id) => {
+  const handleSearchInputChange = (e) => setSearchQuery(e.target.value)
+  const handleSearchResultClick = (gameId) => {
     setShowSearchResults(false)
     setSearchQuery('')
-    navigate(`/games/${id}`)
+    navigate(`/games/${gameId}`)
   }
-
   const handleSearchSubmit = (e) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      navigate(
-        `/games?search=${encodeURIComponent(searchQuery.trim())}`
-      )
+      setShowSearchResults(false)
+      navigate(`/games?search=${encodeURIComponent(searchQuery.trim())}`)
     }
   }
-    const formatTimeAgo = (dateString) => {
-    if (!dateString) return 'Data não disponível'
 
+  // Fixed formatTimeAgo function with proper date validation
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Data não disponível'
+    
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return 'Data inválida'
-
+    
     const now = new Date()
-    const diffInHours = Math.floor(
-      (now - date) / (1000 * 60 * 60)
-    )
-
-    const locale =
-      i18n.language === 'pt'
-        ? pt
-        : i18n.language === 'es'
-        ? es
-        : enUS
-
-    if (diffInHours < 1)
-      return t('homepage.news.justNow')
-    if (diffInHours < 24)
-      return `${diffInHours}h ${t('homepage.news.ago')}`
-    if (diffInHours < 48)
-      return t('homepage.news.yesterday')
-
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
+    const locale = i18n.language === 'pt' ? pt : i18n.language === 'es' ? es : enUS
+    if (diffInHours < 1) return t('homepage.news.justNow')
+    if (diffInHours < 24) return `${diffInHours}h ${t('homepage.news.ago')}`
+    if (diffInHours < 48) return t('homepage.news.yesterday')
     return format(date, 'dd MMM', { locale })
   }
 
+  // Helper function to safely get year from date
   const getGameYear = (dateString) => {
     if (!dateString || dateString === 'TBD') return 'TBA'
     const date = new Date(dateString)
@@ -170,6 +132,7 @@ function HomePage() {
     return date.getFullYear()
   }
 
+  // Helper function to check if game is new (2024+)
   const isNewGame = (dateString) => {
     if (!dateString || dateString === 'TBD') return false
     const date = new Date(dateString)
@@ -177,355 +140,305 @@ function HomePage() {
     return date.getFullYear() >= 2024
   }
 
-  const scrollLeft = (ref) => {
-    if (ref.current)
-      ref.current.scrollBy({
-        left: -300,
-        behavior: 'smooth'
-      })
-  }
-
-  const scrollRight = (ref) => {
-    if (ref.current)
-      ref.current.scrollBy({
-        left: 300,
-        behavior: 'smooth'
-      })
-  }
+  const scrollLeft = (ref) => { if(ref.current) ref.current.scrollBy({ left: -300, behavior: 'smooth' }) }
+  const scrollRight = (ref) => { if(ref.current) ref.current.scrollBy({ left: 300, behavior: 'smooth' }) }
 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* HERO SECTION (UPDATED BLUE THEME) */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-sky-900 via-blue-800 to-cyan-700 text-white">
-
-        {/* subtle background glow */}
-        <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.2),transparent_60%)]"></div>
-
-        <div className="container mx-auto px-4 py-28 relative z-10">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 text-white">
+        <div className="container mx-auto px-4 py-20">
           <div className="text-center max-w-4xl mx-auto">
-
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent">
-              {t('homepage.hero.title')}{' '}
-              {t('homepage.hero.titleHighlight')}
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+              {t('homepage.hero.title')} {t('homepage.hero.titleHighlight')}
             </h1>
+            <p className="text-x1 md:text-2xl mb-8 text-gray-300">{t('homepage.hero.subtitle')}</p>
 
-            <p className="text-xl md:text-2xl mb-8 text-blue-100">
-              {t('homepage.hero.subtitle')}
-            </p>
-
-            {/* SEARCH */}
+            {/* Search Bar */}
             <div className="relative max-w-2xl mx-auto mb-8">
-
               <form onSubmit={handleSearchSubmit} className="relative">
                 <input
                   ref={searchRef}
                   type="text"
-                  placeholder={t(
-                    'homepage.hero.searchPlaceholder'
-                  )}
-                  className="w-full px-6 py-4 text-lg rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-blue-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                  placeholder={t('homepage.hero.searchPlaceholder')}
+                  className="w-full px-6 py-4 text-lg rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
                   value={searchQuery}
                   onChange={handleSearchInputChange}
-                  onFocus={() =>
-                    searchQuery.trim().length >= 2 &&
-                    setShowSearchResults(true)
-                  }
+                  onFocus={() => searchQuery.trim().length >= 2 && setShowSearchResults(true)}
                 />
-
                 <button
                   type="submit"
-                  className="absolute right-2 top-2 bottom-2 px-6 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-full transition-all duration-200 shadow-lg"
+                  className="absolute right-2 top-2 bottom-2 px-6 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold rounded-full transition-colors duration-200"
                 >
                   🔍 {t('homepage.hero.searchButton')}
                 </button>
               </form>
 
-              {/* SEARCH RESULTS */}
+              {/* Search Results Dropdown */}
               {showSearchResults && (
-                <div
+                <div 
                   ref={searchResultsRef}
-                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50"
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-y-auto z-50"
                 >
                   {searchLoading ? (
                     <div className="p-4 text-center text-gray-500">
-                      Searching...
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
+                      Procurando jogos...
                     </div>
                   ) : searchResults.length > 0 ? (
                     <div className="py-2">
                       {searchResults.map((game) => (
                         <button
                           key={game.id}
-                          onClick={() =>
-                            handleSearchResultClick(game.id)
-                          }
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+                          onClick={() => handleSearchResultClick(game.id)}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center space-x-3 transition-colors duration-150"
                         >
                           <img
-                            src={
-                              game.background_image ||
-                              'data:image/svg+xml;base64,...'
-                            }
-                            className="w-10 h-10 rounded object-cover"
+                            src={game.background_image || 'data:image/svg+xml;base64,...'}
+                            alt={game.name}
+                            className="w-10 h-10 object-cover rounded"
+                            onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
                           />
-                          <div className="flex-1">
-                            <div className="font-medium text-gray-900">
-                              {game.name}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-gray-900 font-medium truncate">{game.name}</div>
+                            <div className="text-gray-500 text-sm truncate">
+                              {game.genres.slice(0,2).join(', ')} • {getGameYear(game.released)}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              {game.genres?.slice(0, 2).join(', ')} •{' '}
-                              {getGameYear(game.released)}
-                            </div>
+                          </div>
+                          <div className="flex items-center text-yellow-500">
+                            <span className="text-sm">★ {game.rating || 'N/A'}</span>
                           </div>
                         </button>
                       ))}
+                      {searchResults.length >= 8 && (
+                        <div className="px-4 py-2 border-t border-gray-100">
+                          <button
+                            onClick={() => { setShowSearchResults(false); navigate(`/games?search=${encodeURIComponent(searchQuery.trim())}`) }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            Ver todos os resultados para "{searchQuery}"
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  ) : (
+                  ) : searchQuery.trim().length >= 2 ? (
                     <div className="p-4 text-center text-gray-500">
-                      No results
+                      <div className="text-4xl mb-2">🎮</div>
+                      <div>Nenhum jogo encontrado para "{searchQuery}"</div>
+                      <button
+                        onClick={() => { setShowSearchResults(false); navigate(`/games?search=${encodeURIComponent(searchQuery.trim())}`) }}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2"
+                      >
+                        Buscar na página de jogos
+                      </button>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
 
-            {/* HERO BUTTONS (IMPROVED BLUE STYLE) */}
+            {/* Hero buttons */}
             <div className="flex flex-wrap justify-center gap-4">
               <Link
                 to="/games"
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-blue-500/30 transition-all duration-300 hover:scale-105"
+                className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold py-3 px-8 rounded-full transition-colors duration-200 transform hover:scale-105"
               >
                 {t('homepage.hero.exploreGames')}
               </Link>
-
               <Link
                 to="/reviews"
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 hover:scale-105"
+                className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-bold py-3 px-8 rounded-full transition-all duration-200 transform hover:scale-105"
               >
                 {t('homepage.hero.readReviews')}
               </Link>
             </div>
-              // =========================
-  // FORMAT NEWS TIME
-  // =========================
-  const formatTimeAgo = (dateString) => {
-    if (!dateString) return ''
-
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return ''
-
-    const now = new Date()
-    const diff = Math.floor((now - date) / (1000 * 60 * 60))
-
-    if (diff < 1) return 'Just now'
-    if (diff < 24) return `${diff}h ago`
-    if (diff < 48) return 'Yesterday'
-
-    return format(date, 'dd MMM', { locale: enUS })
-  }
-
-  const isNewGame = (date) => {
-    if (!date) return false
-    const d = new Date(date)
-    return !isNaN(d) && d.getFullYear() >= 2024
-  }
-
-  // =========================
-  // UI
-  // =========================
-  return (
-    <div className="min-h-screen bg-gray-50">
-
-      {/* HERO (BLUE ONLY - NO PURPLE) */}
-      <section className="bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white">
-        <div className="container mx-auto px-4 py-20 text-center">
-
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
-            {t('homepage.hero.title')}
-          </h1>
-
-          <p className="text-xl md:text-2xl text-blue-100 mb-10">
-            {t('homepage.hero.subtitle')}
-          </p>
-
-          {/* SEARCH */}
-          <div className="relative max-w-2xl mx-auto mb-10">
-
-            <form onSubmit={handleSearchSubmit}>
-              <input
-                ref={searchRef}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('homepage.hero.searchPlaceholder')}
-                className="w-full px-6 py-4 rounded-full text-black focus:outline-none focus:ring-4 focus:ring-blue-400"
-                onFocus={() => searchQuery.length >= 2 && setShowSearchResults(true)}
-              />
-            </form>
-
-            {showSearchResults && (
-              <div
-                ref={searchResultsRef}
-                className="absolute w-full mt-2 bg-white text-black rounded-xl shadow-lg max-h-96 overflow-auto z-50"
-              >
-                {searchLoading ? (
-                  <div className="p-4 text-center">Loading...</div>
-                ) : searchResults.length > 0 ? (
-                  searchResults.map((g) => (
-                    <button
-                      key={g.id}
-                      onClick={() => handleSearchClick(g.id)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-100 flex gap-3"
-                    >
-                      <img
-                        src={g.background_image}
-                        className="w-10 h-10 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <div className="font-semibold truncate">{g.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {getYear(g.released)}
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-gray-500">
-                    No results
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* BUTTONS */}
-          <div className="flex justify-center gap-4 flex-wrap">
-            <Link
-              to="/games"
-              className="bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-full font-bold"
-            >
-              Explore Games
-            </Link>
-
-            <Link
-              to="/reviews"
-              className="bg-white/10 border border-white/30 px-6 py-3 rounded-full"
-            >
-              Reviews
-            </Link>
           </div>
         </div>
       </section>
 
-      {/* POPULAR */}
+      {/* Popular Games Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">
-            Popular Games
-          </h2>
-
-          <div ref={popularGamesRef} className="flex gap-6 overflow-x-auto">
-
-            {loadingGames ? (
-              <p>Loading...</p>
-            ) : (
-              popularGames.map((game) => (
-                <Link
-                  key={game.id}
-                  to={`/games/${game.id}`}
-                  className="min-w-[220px] bg-white rounded-lg shadow hover:scale-105 transition"
-                >
-                  <img
-                    src={game.background_image}
-                    className="h-40 w-full object-cover rounded-t-lg"
-                  />
-                  <div className="p-3">
-                    <h3 className="font-semibold truncate">
-                      {game.name}
-                    </h3>
-                  </div>
-                </Link>
-              ))
-            )}
-
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">{t('homepage.sections.popular')}</h2>
+            <Link to="/games" className="text-blue-600 hover:text-blue-800 font-medium">
+              {t('homepage.popularGames.viewAll')} →
+            </Link>
           </div>
+          {loadingGames ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <span className="ml-4 text-gray-600">{t('homepage.popularGames.loading')}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollLeft(popularGamesRef)}
+              >
+                ◀
+              </button>
+              <div ref={popularGamesRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
+                {popularGames.map(game => (
+                  <Link key={game.id} to={`/games/${game.id}`} className="group flex-shrink-0 w-60">
+                    <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
+                      <div className="h-48 bg-gray-200 overflow-hidden">
+                        <img 
+                          src={game.background_image} 
+                          alt={game.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
+                        />
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
+                        <div className="flex items-center mb-2">
+                          <span className="text-yellow-500 text-sm">{'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}</span>
+                          <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
+                        </div>
+                        <p className="text-gray-600 text-sm truncate">{game.genres.join(', ')}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <button
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollRight(popularGamesRef)}
+              >
+                ▶
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* RECENT */}
+      {/* Recent Releases Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">
-            Recent Releases
-          </h2>
-
-          <div ref={recentGamesRef} className="flex gap-6 overflow-x-auto">
-
-            {recentGames.map((game) => (
-              <div
-                key={game.id}
-                className="min-w-[220px] bg-white rounded-lg shadow"
-              >
-                <img
-                  src={game.background_image}
-                  className="h-40 w-full object-cover rounded-t-lg"
-                />
-
-                <div className="p-3">
-                  <h3 className="font-semibold truncate">
-                    {game.name}
-                  </h3>
-
-                  {isNewGame(game.released) && (
-                    <span className="text-xs text-blue-600 font-bold">
-                      NEW
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">{t('homepage.recentReleases.title')}</h2>
+            <Link to="/games?ordering=-released" className="text-blue-600 hover:text-blue-800 font-medium">
+              {t('homepage.recentReleases.viewAll')} →
+            </Link>
           </div>
+          {loadingGames ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <span className="ml-4 text-gray-600">{t('homepage.recentReleases.loading')}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollLeft(recentGamesRef)}
+              >
+                ◀
+              </button>
+              <div ref={recentGamesRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
+                {recentGames.map(game => (
+                  <Link key={game.id} to={`/games/${game.id}`} className="group flex-shrink-0 w-60">
+                    <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
+                      <div className="h-48 bg-gray-200 overflow-hidden relative">
+                        <img 
+                          src={game.background_image} 
+                          alt={game.name}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
+                        />
+                        {isNewGame(game.released) && (
+                          <div className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">NOVO</div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold text-lg mb-2 truncate" title={game.name}>{game.name}</h3>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <span className="text-yellow-500 text-sm">{'★'.repeat(Math.round(game.rating))}{'☆'.repeat(5 - Math.round(game.rating))}</span>
+                            <span className="ml-2 text-gray-600 text-sm">{game.rating}/5</span>
+                          </div>
+                          <span className="text-gray-500 text-xs">{getGameYear(game.released)}</span>
+                        </div>
+                        <p className="text-gray-600 text-sm truncate">{game.genres.join(', ')}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              <button
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollRight(recentGamesRef)}
+              >
+                ▶
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* NEWS */}
+      {/* Gaming News Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">
-            Gaming News
-          </h2>
-
-          <div ref={newsRef} className="flex gap-6 overflow-x-auto">
-
-            {consoleNews.map((n, i) => (
-              <div
-                key={i}
-                className="min-w-[300px] bg-white shadow rounded-lg overflow-hidden"
-              >
-                <img
-                  src={n.urlToImage}
-                  className="h-40 w-full object-cover"
-                />
-
-                <div className="p-4">
-                  <h3 className="font-bold text-sm mb-2">
-                    {n.title}
-                  </h3>
-
-                  <p className="text-xs text-gray-500">
-                    {formatTimeAgo(n.publishedAt)}
-                  </p>
-                </div>
-              </div>
-            ))}
-
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-800">{t('homepage.news.title')}</h2>
+            <Link to="/news" className="text-blue-600 hover:text-blue-800 font-medium">
+              {t('homepage.news.viewAll')} →
+            </Link>
           </div>
+          {loadingNews ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              <span className="ml-4 text-gray-600">{t('homepage.news.loading')}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <button
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollLeft(newsRef)}
+              >
+                ◀
+              </button>
+              <div ref={newsRef} className="flex space-x-6 overflow-x-auto pb-4 scroll-smooth">
+                {consoleNews.slice(0, 10).map((article, index) => (
+                  <div key={index} className="flex-shrink-0 w-80">
+                    <div className="card-shadow rounded-lg overflow-hidden bg-white hover:transform hover:scale-105 transition-all duration-300">
+                      <div className="h-48 bg-gray-200 overflow-hidden">
+                        <img 
+                          src={article.urlToImage || 'data:image/svg+xml;base64,...'} 
+                          alt={article.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.target.src = 'data:image/svg+xml;base64,...' }}
+                        />
+                      </div>
+                      <div className="p-6">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-blue-600 text-sm font-medium">{article.source.name}</span>
+                          <span className="text-gray-500 text-sm">{formatTimeAgo(article.publishedAt)}</span>
+                        </div>
+                        <h3 className="font-bold text-lg mb-3 text-gray-800 line-clamp-2">{article.title}</h3>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">{article.description}</p>
+                        <button
+                          onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(article.title)}`, '_blank')}
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm transition-colors duration-200"
+                        >
+                          {t('homepage.news.readMore')} →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/70 hover:bg-white p-2 rounded-full shadow-md"
+                onClick={() => scrollRight(newsRef)}
+              >
+                ▶
+              </button>
+            </div>
+          )}
         </div>
       </section>
-
     </div>
   )
 }
