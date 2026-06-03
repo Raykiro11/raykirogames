@@ -17,7 +17,7 @@ function GamesPage() {
   // FETCH GAMES
   // ========================
   const fetchGames = async (pageNumber, reset = false) => {
-    if (loading || (!hasMore && !reset)) return
+    if (loading) return
 
     setLoading(true)
 
@@ -37,9 +37,10 @@ function GamesPage() {
           setGames((prev) => [...prev, ...data.games])
         }
 
-        // stop condition
         if (data.games.length < 20) {
           setHasMore(false)
+        } else {
+          setHasMore(true)
         }
       }
     } catch (err) {
@@ -50,36 +51,43 @@ function GamesPage() {
   }
 
   // ========================
-  // INITIAL LOAD
+  // RESET WHEN FILTERS CHANGE
   // ========================
   useEffect(() => {
     setGames([])
     setPage(1)
     setHasMore(true)
-    fetchGames(1, true)
   }, [search, ordering])
+
+  // ========================
+  // LOAD PAGE
+  // ========================
+  useEffect(() => {
+    fetchGames(page, page === 1)
+  }, [page, search, ordering])
 
   // ========================
   // INFINITE SCROLL
   // ========================
   useEffect(() => {
     const handleScroll = () => {
+      if (loading || !hasMore) return
+
       const scrollTop = window.scrollY
       const windowHeight = window.innerHeight
       const docHeight = document.documentElement.scrollHeight
 
-      if (scrollTop + windowHeight >= docHeight - 200) {
-        if (!loading && hasMore) {
-          const nextPage = page + 1
-          setPage(nextPage)
-          fetchGames(nextPage)
-        }
+      if (scrollTop + windowHeight >= docHeight - 300) {
+        setPage((prev) => prev + 1)
       }
     }
 
     window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [page, loading, hasMore])
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll)
+    }
+  }, [loading, hasMore])
 
   // ========================
   // UI
@@ -87,10 +95,8 @@ function GamesPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
 
-      {/* Header */}
       <h1 className="text-3xl font-bold mb-6">Games</h1>
 
-      {/* Filters */}
       <div className="flex gap-4 mb-6 flex-wrap">
 
         <input
@@ -114,7 +120,6 @@ function GamesPage() {
 
       </div>
 
-      {/* Games Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 
         {games.map((game) => (
@@ -132,7 +137,10 @@ function GamesPage() {
               />
 
               <div className="p-2">
-                <h3 className="font-semibold truncate">{game.name}</h3>
+                <h3 className="font-semibold truncate">
+                  {game.name}
+                </h3>
+
                 <p className="text-sm text-gray-500">
                   ⭐ {game.rating || "N/A"}
                 </p>
@@ -144,12 +152,12 @@ function GamesPage() {
 
       </div>
 
-      {/* Loading */}
       {loading && (
-        <p className="text-center mt-6">Loading more games...</p>
+        <p className="text-center mt-6">
+          Loading more games...
+        </p>
       )}
 
-      {/* End */}
       {!hasMore && (
         <p className="text-center mt-6 text-gray-500">
           No more games
