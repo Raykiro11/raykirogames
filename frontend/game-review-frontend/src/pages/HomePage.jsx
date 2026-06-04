@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  fetchPopularGames,
-  fetchRecentGames,
-  fetchNews,
-  fetchConsoleNews
-} from '../lib/api'
+import { fetchPopularGames, fetchRecentGames, fetchNews, fetchConsoleNews } from '../lib/api'
 import { format } from 'date-fns'
 import { pt, enUS, es } from 'date-fns/locale'
 
@@ -19,8 +14,10 @@ function HomePage() {
 
   const [popularGames, setPopularGames] = useState([])
   const [recentGames, setRecentGames] = useState([])
-  const [gamingNews, setGamingNews] = useState([])
   const [consoleNews, setConsoleNews] = useState([])
+
+  const [trendingGames, setTrendingGames] = useState([])
+  const [topRatedGames, setTopRatedGames] = useState([])
 
   const [loadingGames, setLoadingGames] = useState(true)
   const [loadingNews, setLoadingNews] = useState(true)
@@ -35,7 +32,7 @@ function HomePage() {
 
   const popularGamesRef = useRef(null)
   const recentGamesRef = useRef(null)
-  const newsRef = useRef(null)
+  const trendingRef = useRef(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -43,35 +40,37 @@ function HomePage() {
         setLoadingGames(true)
         setLoadingNews(true)
 
-        const [
-          popularData,
-          recentData,
-          newsData,
-          consoleNewsData
-        ] = await Promise.all([
-          fetchPopularGames(1, 20),
-          fetchRecentGames(1, 20),
-          fetchNews(),
-          fetchConsoleNews()
-        ])
+        const [popularData, recentData, newsData, consoleNewsData] =
+          await Promise.all([
+            fetchPopularGames(1, 20),
+            fetchRecentGames(1, 20),
+            fetchNews(),
+            fetchConsoleNews()
+          ])
 
-        if (popularData?.status === 'success') {
-          setPopularGames(popularData.games || [])
-        }
+        const popular = popularData.games || []
+        const recent = recentData.games || []
 
-        if (recentData?.status === 'success') {
-          setRecentGames(recentData.games || [])
-        }
+        setPopularGames(popular)
+        setRecentGames(recent)
 
-        if (newsData?.status === 'success') {
-          setGamingNews(newsData.news || [])
-        }
+        // 🔥 Trending (based on rating)
+        const trending = [...popular]
+          .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+          .slice(0, 10)
+        setTrendingGames(trending)
 
-        if (consoleNewsData?.status === 'ok') {
+        // ⭐ Top rated
+        const topRated = [...recent]
+          .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+          .slice(0, 10)
+        setTopRatedGames(topRated)
+
+        if (consoleNewsData.status === 'ok') {
           setConsoleNews(consoleNewsData.articles || [])
         }
-      } catch (error) {
-        console.error('Error loading homepage data:', error)
+      } catch (err) {
+        console.error('Error loading data:', err)
       } finally {
         setLoadingGames(false)
         setLoadingNews(false)
@@ -92,555 +91,436 @@ function HomePage() {
       setSearchLoading(true)
 
       try {
-        const response = await fetch(
+        const res = await fetch(
           `${API_BASE_URL}/games?search=${encodeURIComponent(
-            searchQuery.trim()
+            searchQuery
           )}&page_size=8`
         )
+        const data = await res.json()
 
-        const data = await response.json()
-
-        if (data?.status === 'success') {
+        if (data.status === 'success') {
           setSearchResults(data.games || [])
           setShowSearchResults(true)
         }
-      } catch (error) {
-        console.error('Search error:', error)
-        setSearchResults([])
+      } catch (err) {
+        console.error(err)
       } finally {
         setSearchLoading(false)
       }
     }
 
-    const timeoutId = setTimeout(searchGames, 300)
-
-    return () => clearTimeout(timeoutId)
+    const t = setTimeout(searchGames, 300)
+    return () => clearTimeout(t)
   }, [searchQuery])
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (
-        searchRef.current &&
-        !searchRef.current.contains(event.target) &&
-        searchResultsRef.current &&
-        !searchResultsRef.current.contains(event.target)
-      ) {
-        setShowSearchResults(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-
-    return () =>
-      document.removeEventListener(
-        'mousedown',
-        handleClickOutside
-      )
-  }, [])
-
-  const handleSearchInputChange = (e) => {
-    setSearchQuery(e.target.value)
-  }
-
-  const handleSearchResultClick = (gameId) => {
-    setShowSearchResults(false)
-    setSearchQuery('')
-    navigate(`/games/${gameId}`)
-  }
-
-  const handleSearchSubmit = (e) => {
+  const handleSearch = (e) => {
     e.preventDefault()
-
-    if (searchQuery.trim()) {
-      setShowSearchResults(false)
-      navigate(
-        `/games?search=${encodeURIComponent(
-          searchQuery.trim()
-        )}`
-      )
-    }
+    if (!searchQuery.trim()) return
+    navigate(`/games?search=${encodeURIComponent(searchQuery)}`)
   }
 
-  const formatTimeAgo = (dateString) => {
-    if (!dateString) return 'Date unavailable'
-
-    const date = new Date(dateString)
-
-    if (isNaN(date.getTime())) return 'Invalid date'
-
-    const now = new Date()
-    const diffInHours = Math.floor(
-      (now - date) / (1000 * 60 * 60)
-    )
-
-    const locale =
-      i18n.language === 'pt'
-        ? pt
-        : i18n.language === 'es'
-        ? es
-        : enUS
-
-    if (diffInHours < 1) {
-      return t('homepage.news.justNow')
-    }
-
-    if (diffInHours < 24) {
-      return `${diffInHours}h ${t('homepage.news.ago')}`
-    }
-
-    if (diffInHours < 48) {
-      return t('homepage.news.yesterday')
-    }
-
-    return format(date, 'dd MMM', { locale })
-  }
-    const getGameYear = (dateString) => {
-    if (!dateString || dateString === 'TBD') return 'TBA'
-
-    const date = new Date(dateString)
-
-    if (isNaN(date.getTime())) return 'TBA'
-
-    return date.getFullYear()
+  const formatYear = (date) => {
+    if (!date) return 'TBA'
+    const d = new Date(date)
+    return isNaN(d.getTime()) ? 'TBA' : d.getFullYear()
   }
 
-  const isNewGame = (dateString) => {
-    if (!dateString || dateString === 'TBD') return false
-
-    const date = new Date(dateString)
-
-    if (isNaN(date.getTime())) return false
-
-    return date.getFullYear() >= 2024
-  }
-
-  const scrollLeft = (ref) => {
+  const scroll = (ref, dir) => {
     if (ref.current) {
       ref.current.scrollBy({
-        left: -320,
+        left: dir * 300,
         behavior: 'smooth'
       })
     }
   }
-
-  const scrollRight = (ref) => {
-    if (ref.current) {
-      ref.current.scrollBy({
-        left: 320,
-        behavior: 'smooth'
-      })
-    }
-  }
-
-  return (
+    return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* HERO SECTION */}
-      <section className="bg-gradient-to-br from-blue-900 via-blue-800 to-cyan-700 text-white">
-        <div className="container mx-auto px-4 py-24">
-          <div className="text-center max-w-5xl mx-auto">
+      {/* HERO SECTION - BLUE THEME */}
+      <section className="bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 text-white">
+        <div className="container mx-auto px-4 py-20">
 
-            <h1 className="text-5xl md:text-7xl font-extrabold mb-6 bg-gradient-to-r from-cyan-300 to-blue-100 bg-clip-text text-transparent">
-              {t('homepage.hero.title')} {t('homepage.hero.titleHighlight')}
+          <div className="text-center max-w-4xl mx-auto">
+
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-cyan-300 to-blue-300 bg-clip-text text-transparent">
+              {t('homepage.hero.title')}
             </h1>
 
-            <p className="text-xl md:text-2xl text-blue-100 mb-10">
+            <p className="text-lg md:text-2xl mb-10 text-slate-200">
               {t('homepage.hero.subtitle')}
             </p>
 
-            {/* SEARCH */}
-            <div className="relative max-w-3xl mx-auto mb-10">
+            {/* SEARCH BAR */}
+            <div className="relative max-w-2xl mx-auto mb-8">
 
-              <form
-                onSubmit={handleSearchSubmit}
-                className="relative"
-              >
+              <form onSubmit={handleSearch} className="relative">
+
                 <input
                   ref={searchRef}
-                  type="text"
                   value={searchQuery}
-                  onChange={handleSearchInputChange}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('homepage.hero.searchPlaceholder')}
+                  className="w-full px-6 py-4 rounded-full text-black bg-white/90 focus:outline-none focus:ring-2 focus:ring-cyan-400"
                   onFocus={() =>
                     searchQuery.trim().length >= 2 &&
                     setShowSearchResults(true)
                   }
-                  placeholder={t(
-                    'homepage.hero.searchPlaceholder'
-                  )}
-                  className="w-full px-7 py-5 text-lg rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-blue-100 focus:outline-none focus:ring-2 focus:ring-cyan-300"
                 />
 
                 <button
+                  className="absolute right-2 top-2 bottom-2 px-6 bg-blue-600 hover:bg-blue-700 rounded-full font-semibold"
                   type="submit"
-                  className="absolute right-2 top-2 bottom-2 px-7 rounded-full font-semibold bg-cyan-400 hover:bg-cyan-300 text-slate-900 transition-all"
                 >
-                  🔍 {t('homepage.hero.searchButton')}
+                  🔍
                 </button>
+
               </form>
 
+              {/* SEARCH DROPDOWN */}
               {showSearchResults && (
                 <div
                   ref={searchResultsRef}
-                  className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl shadow-2xl border border-slate-200 max-h-96 overflow-y-auto z-50"
+                  className="absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl z-50 max-h-96 overflow-auto"
                 >
+
                   {searchLoading ? (
-                    <div className="p-6 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-3"></div>
-                      <span className="text-slate-500">
-                        Searching games...
-                      </span>
+                    <div className="p-4 text-center text-gray-500">
+                      Searching...
                     </div>
                   ) : searchResults.length > 0 ? (
-                    <div className="py-2">
-                      {searchResults.map((game) => (
-                        <button
-                          key={game.id}
-                          onClick={() =>
-                            handleSearchResultClick(game.id)
-                          }
-                          className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left"
-                        >
-                          <img
-                            src={game.background_image}
-                            alt={game.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-slate-800 truncate">
-                              {game.name}
-                            </div>
-
-                            <div className="text-sm text-slate-500 truncate">
-                              {game.genres
-                                ?.slice(0, 2)
-                                ?.join(', ')}{' '}
-                              • {getGameYear(game.released)}
-                            </div>
-                          </div>
-
-                          <div className="text-yellow-500 text-sm">
-                            ★ {game.rating || 'N/A'}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                    searchResults.map((game) => (
+                      <button
+                        key={game.id}
+                        onClick={() => navigate(`/games/${game.id}`)}
+                        className="w-full flex items-center gap-3 p-3 hover:bg-slate-100"
+                      >
+                        <img
+                          src={game.background_image}
+                          className="w-10 h-10 object-cover rounded"
+                        />
+                        <div className="text-left">
+                          <p className="font-semibold">{game.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatYear(game.released)}
+                          </p>
+                        </div>
+                      </button>
+                    ))
                   ) : (
-                    <div className="p-6 text-center text-slate-500">
-                      <div className="text-5xl mb-2">🎮</div>
-                      <div>
-                        No games found for "{searchQuery}"
-                      </div>
+                    <div className="p-4 text-gray-500 text-center">
+                      No results
                     </div>
                   )}
+
                 </div>
               )}
+
             </div>
 
             {/* BUTTONS */}
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex justify-center gap-4 flex-wrap">
+
               <Link
                 to="/games"
-                className="bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-bold py-3 px-8 rounded-full transition-all hover:scale-105"
+                className="bg-cyan-500 hover:bg-cyan-600 text-black font-bold px-8 py-3 rounded-full"
               >
-                {t('homepage.hero.exploreGames')}
+                Explore Games
               </Link>
 
               <Link
                 to="/reviews"
-                className="bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-sm text-white font-bold py-3 px-8 rounded-full transition-all hover:scale-105"
+                className="bg-white/10 border border-white/30 px-8 py-3 rounded-full hover:bg-white/20"
               >
-                {t('homepage.hero.readReviews')}
+                Reviews
               </Link>
+
             </div>
 
           </div>
         </div>
       </section>
 
-      {/* POPULAR GAMES */}
-      <section className="py-20 bg-white">
+      {/* 🔥 TRENDING SECTION */}
+      <section className="py-16 bg-slate-100">
         <div className="container mx-auto px-4">
 
-          <div className="flex justify-between items-center mb-10">
-            <h2 className="text-4xl font-bold text-slate-800">
-              {t('homepage.sections.popular')}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-slate-800">
+              🔥 Trending Now
+            </h2>
+          </div>
+
+          <div className="flex gap-6 overflow-x-auto pb-4">
+
+            {trendingGames.map((game) => (
+              <Link
+                key={game.id}
+                to={`/games/${game.id}`}
+                className="flex-shrink-0 w-64 group"
+              >
+                <div className="bg-white rounded-xl shadow hover:shadow-lg transition">
+
+                  <img
+                    src={game.background_image}
+                    className="h-40 w-full object-cover group-hover:scale-105 transition"
+                  />
+
+                  <div className="p-4">
+                    <h3 className="font-semibold truncate">
+                      {game.name}
+                    </h3>
+                    <p className="text-yellow-500 text-sm mt-1">
+                      ★ {game.rating}
+                    </p>
+                  </div>
+
+                </div>
+              </Link>
+            ))}
+
+          </div>
+
+        </div>
+      </section>
+      
+      {/* ⭐ TOP RATED SECTION */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+
+          <h2 className="text-3xl font-bold mb-8 text-slate-800">
+            ⭐ Top Rated Games
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+
+            {topRatedGames.map((game) => (
+              <Link key={game.id} to={`/games/${game.id}`}>
+                <div className="bg-slate-50 rounded-lg overflow-hidden hover:shadow-lg transition">
+
+                  <img
+                    src={game.background_image}
+                    className="h-32 w-full object-cover"
+                    alt={game.name}
+                  />
+
+                  <div className="p-2">
+                    <p className="font-semibold text-sm truncate">
+                      {game.name}
+                    </p>
+                    <p className="text-yellow-500 text-xs">
+                      ★ {game.rating}
+                    </p>
+                  </div>
+
+                </div>
+              </Link>
+            ))}
+
+          </div>
+
+        </div>
+      </section>
+
+
+      {/* 🎮 GENRES SECTION */}
+      <section className="py-16 bg-slate-100">
+        <div className="container mx-auto px-4">
+
+          <h2 className="text-3xl font-bold mb-8 text-slate-800">
+            🎮 Explore Genres
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+
+            {[
+              { name: 'Action', slug: 'action' },
+              { name: 'RPG', slug: 'role-playing-games-rpg' },
+              { name: 'Shooter', slug: 'shooter' },
+              { name: 'Adventure', slug: 'adventure' },
+              { name: 'Strategy', slug: 'strategy' },
+              { name: 'Indie', slug: 'indie' }
+            ].map((g) => (
+              <Link
+                key={g.slug}
+                to={`/games?genres=${g.slug}`}
+                className="bg-white rounded-xl p-6 text-center hover:shadow-md transition"
+              >
+                <p className="font-semibold">{g.name}</p>
+              </Link>
+            ))}
+
+          </div>
+
+        </div>
+      </section>
+
+
+      {/* 🎯 POPULAR GAMES */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-slate-800">
+              🎯 Popular Games
             </h2>
 
-            <Link
-              to="/games"
-              className="font-semibold text-cyan-600 hover:text-cyan-700"
-            >
-              {t('homepage.popularGames.viewAll')} →
+            <Link to="/games" className="text-blue-600 hover:underline">
+              View all →
             </Link>
           </div>
 
-          {loadingGames ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-            </div>
-          ) : (
-            <div className="relative">
+          <div className="relative">
 
-              <button
-                onClick={() => scrollLeft(popularGamesRef)}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-3"
-              >
-                ◀
-              </button>
+            <button
+              onClick={() => scroll(popularGamesRef, -1)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow p-2 rounded-full"
+            >
+              ◀
+            </button>
 
-              <div
-                ref={popularGamesRef}
-                className="flex gap-6 overflow-x-auto scroll-smooth pb-4"
-              >
-                {popularGames.map((game) => (
-                  <Link
-                    key={game.id}
-                    to={`/games/${game.id}`}
-                    className="flex-shrink-0 w-64 group"
-                  >
-                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all">
-                      <div className="h-52 overflow-hidden">
-                        <img
-                          src={game.background_image}
-                          alt={game.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                      </div>
+            <div
+              ref={popularGamesRef}
+              className="flex gap-6 overflow-x-auto scroll-smooth pb-4"
+            >
 
-                      <div className="p-4">
-                        <h3 className="font-bold text-lg truncate">
-                          {game.name}
-                        </h3>
+              {popularGames.map((game) => (
+                <Link
+                  key={game.id}
+                  to={`/games/${game.id}`}
+                  className="flex-shrink-0 w-60 group"
+                >
+                  <div className="bg-white rounded-xl shadow hover:shadow-xl transition">
 
-                        <div className="mt-2 text-yellow-500">
-                          ★ {game.rating}
-                        </div>
+                    <img
+                      src={game.background_image}
+                      className="h-44 w-full object-cover group-hover:scale-105 transition"
+                    />
 
-                        <div className="mt-2 text-sm text-slate-500 truncate">
-                          {game.genres?.join(', ')}
-                        </div>
-                      </div>
+                    <div className="p-3">
+                      <h3 className="font-semibold truncate">
+                        {game.name}
+                      </h3>
+
+                      <p className="text-sm text-gray-500">
+                        ★ {game.rating}
+                      </p>
                     </div>
-                  </Link>
-                ))}
-              </div>
 
-              <button
-                onClick={() => scrollRight(popularGamesRef)}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-3"
-              >
-                ▶
-              </button>
+                  </div>
+                </Link>
+              ))}
+
             </div>
-          )}
+
+            <button
+              onClick={() => scroll(popularGamesRef, 1)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow p-2 rounded-full"
+            >
+              ▶
+            </button>
+
+          </div>
+
         </div>
       </section>
-            {/* RECENT RELEASES */}
-      <section className="py-20 bg-slate-100">
+      
+      {/* 🆕 RECENT RELEASES */}
+      <section className="py-16 bg-slate-50">
         <div className="container mx-auto px-4">
 
-          <div className="flex justify-between items-center mb-10">
-            <h2 className="text-4xl font-bold text-slate-800">
-              {t('homepage.recentReleases.title')}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-slate-800">
+              🆕 Recent Releases
             </h2>
 
             <Link
               to="/games?ordering=-released"
-              className="font-semibold text-cyan-600 hover:text-cyan-700"
+              className="text-blue-600 hover:underline"
             >
-              {t('homepage.recentReleases.viewAll')} →
+              View all →
             </Link>
           </div>
 
-          {loadingGames ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-            </div>
-          ) : (
-            <div className="relative">
+          <div className="relative">
 
-              <button
-                onClick={() => scrollLeft(recentGamesRef)}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-3"
-              >
-                ◀
-              </button>
+            <button
+              onClick={() => scroll(recentGamesRef, -1)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow p-2 rounded-full"
+            >
+              ◀
+            </button>
 
-              <div
-                ref={recentGamesRef}
-                className="flex gap-6 overflow-x-auto scroll-smooth pb-4"
-              >
-                {recentGames.map((game) => (
-                  <Link
-                    key={game.id}
-                    to={`/games/${game.id}`}
-                    className="flex-shrink-0 w-64 group"
-                  >
-                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all">
+            <div
+              ref={recentGamesRef}
+              className="flex gap-6 overflow-x-auto pb-4 scroll-smooth"
+            >
 
-                      <div className="h-52 overflow-hidden relative">
-                        <img
-                          src={game.background_image}
-                          alt={game.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
+              {recentGames.map((game) => (
+                <Link
+                  key={game.id}
+                  to={`/games/${game.id}`}
+                  className="flex-shrink-0 w-60 group"
+                >
+                  <div className="bg-white rounded-xl shadow hover:shadow-lg transition">
 
-                        {isNewGame(game.released) && (
-                          <div className="absolute top-3 left-3 bg-cyan-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                            NEW
-                          </div>
-                        )}
-                      </div>
+                    <img
+                      src={game.background_image}
+                      className="h-44 w-full object-cover group-hover:scale-105 transition"
+                      alt={game.name}
+                    />
 
-                      <div className="p-4">
-                        <h3
-                          className="font-bold text-lg truncate"
-                          title={game.name}
-                        >
-                          {game.name}
-                        </h3>
+                    <div className="p-3">
+                      <h3 className="font-semibold truncate">
+                        {game.name}
+                      </h3>
 
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="text-yellow-500">
-                            ★ {game.rating}
-                          </span>
-
-                          <span className="text-slate-500 text-sm">
-                            {getGameYear(game.released)}
-                          </span>
-                        </div>
-
-                        <div className="mt-2 text-sm text-slate-500 truncate">
-                          {game.genres?.join(', ')}
-                        </div>
-                      </div>
-
+                      <p className="text-sm text-gray-500">
+                        ★ {game.rating}
+                      </p>
                     </div>
-                  </Link>
-                ))}
-              </div>
 
-              <button
-                onClick={() => scrollRight(recentGamesRef)}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-3"
-              >
-                ▶
-              </button>
+                  </div>
+                </Link>
+              ))}
 
             </div>
-          )}
+
+            <button
+              onClick={() => scroll(recentGamesRef, 1)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow p-2 rounded-full"
+            >
+              ▶
+            </button>
+
+          </div>
+
         </div>
       </section>
 
-      {/* NEWS SECTION */}
-      <section className="py-20 bg-white">
+
+      {/* 📰 NEWS SECTION (KEPT BUT CLEANED) */}
+      <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
 
-          <div className="flex justify-between items-center mb-10">
-            <h2 className="text-4xl font-bold text-slate-800">
-              {t('homepage.news.title')}
-            </h2>
+          <h2 className="text-3xl font-bold mb-8 text-slate-800">
+            📰 Gaming News
+          </h2>
 
-            <Link
-              to="/news"
-              className="font-semibold text-cyan-600 hover:text-cyan-700"
-            >
-              {t('homepage.news.viewAll')} →
-            </Link>
+          <div className="text-center text-gray-500 py-10">
+            <p className="text-lg">
+              News feed will be added soon.
+            </p>
+            <p className="text-sm mt-2">
+              (This section is reserved for live updates)
+            </p>
           </div>
 
-          {loadingNews ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500"></div>
-            </div>
-          ) : (
-            <div className="relative">
-
-              <button
-                onClick={() => scrollLeft(newsRef)}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-3"
-              >
-                ◀
-              </button>
-
-              <div
-                ref={newsRef}
-                className="flex gap-6 overflow-x-auto scroll-smooth pb-4"
-              >
-                {consoleNews.slice(0, 10).map((article, index) => (
-                  <div
-                    key={index}
-                    className="flex-shrink-0 w-80"
-                  >
-                    <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl hover:-translate-y-1 transition-all">
-
-                      <div className="h-52 overflow-hidden">
-                        <img
-                          src={
-                            article.urlToImage ||
-                            'data:image/svg+xml;base64,...'
-                          }
-                          alt={article.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src =
-                              'data:image/svg+xml;base64,...'
-                          }}
-                        />
-                      </div>
-
-                      <div className="p-6">
-
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-cyan-600 text-sm font-semibold">
-                            {article.source?.name}
-                          </span>
-
-                          <span className="text-slate-500 text-sm">
-                            {formatTimeAgo(article.publishedAt)}
-                          </span>
-                        </div>
-
-                        <h3 className="font-bold text-lg text-slate-800 mb-3 line-clamp-2">
-                          {article.title}
-                        </h3>
-
-                        <p className="text-slate-600 text-sm mb-4 line-clamp-3">
-                          {article.description}
-                        </p>
-
-                        <button
-                          onClick={() =>
-                            window.open(
-                              `https://www.google.com/search?q=${encodeURIComponent(
-                                article.title
-                              )}`,
-                              '_blank'
-                            )
-                          }
-                          className="text-cyan-600 hover:text-cyan-700 font-semibold"
-                        >
-                          {t('homepage.news.readMore')} →
-                        </button>
-
-                      </div>
-
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => scrollRight(newsRef)}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white shadow-lg rounded-full p-3"
-              >
-                ▶
-              </button>
-                          </div>
-          )}
         </div>
       </section>
+
+
+      {/* FOOTER SPACER */}
+      <div className="py-10"></div>
 
     </div>
   )
